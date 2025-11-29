@@ -25,7 +25,6 @@ class HomeScreen extends HTMLElement {
 
   render() {
     this.innerHTML = `
-      <link rel="stylesheet" href="../css/home-screen.css">
 
       <div class="home-container">
         <div class="empty">

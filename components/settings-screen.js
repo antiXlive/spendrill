@@ -24,8 +24,7 @@ class SettingsScreen extends HTMLElement {
 
   render() {
     this.innerHTML = `
-      <link rel="stylesheet" href="../css/settings-screen.css">
-
+      
       <div class="settings-container">
         <div class="title">Settings</div>
 

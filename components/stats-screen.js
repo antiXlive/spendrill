@@ -24,8 +24,7 @@ class StatsScreen extends HTMLElement {
 
   render() {
     this.innerHTML = `
-      <link rel="stylesheet" href="../css/stats-screen.css">
-
+      
       <div class="stats-container">
         <div class="title">Statistics</div>
 

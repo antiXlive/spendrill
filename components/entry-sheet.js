@@ -61,7 +61,6 @@ class EntrySheet extends HTMLElement {
 
   render() {
     this.innerHTML = `
-      <link rel="stylesheet" href="../css/entry-sheet.css">
 
       <div class="es-overlay" id="esOverlay" aria-hidden="true"></div>
 

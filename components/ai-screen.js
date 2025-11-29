@@ -24,8 +24,7 @@ class AIScreen extends HTMLElement {
 
   render() {
     this.innerHTML = `
-      <link rel="stylesheet" href="../css/ai-screen.css">
-
+      
       <div class="ai-container">
         <div class="title">AI Insights</div>
 

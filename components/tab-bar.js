@@ -22,8 +22,7 @@ class TabBar extends HTMLElement {
 
   render() {
     this.innerHTML = `
-      <link rel="stylesheet" href="../css/tab-bar.css">
-
+      
       <div class="tab-pill">
 
         <!-- Home -->

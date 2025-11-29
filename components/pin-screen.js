@@ -26,7 +26,6 @@ class PinScreen extends HTMLElement {
 
   render() {
     this.innerHTML = `
-      <link rel="stylesheet" href="../css/pin-screen.css">
 
       <div class="pin-wrapper">
         <div class="title" id="pinTitle">Set PIN</div>

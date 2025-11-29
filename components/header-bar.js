@@ -23,7 +23,6 @@ class HeaderBar extends HTMLElement {
 
   render() {
     this.innerHTML = `
-      <link rel="stylesheet" href="../css/header-bar.css">
       <div class="header-container">
         <div class="title">Home</div>
       </div>
