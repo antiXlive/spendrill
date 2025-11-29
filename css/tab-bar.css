@@ -1,96 +1,122 @@
-/* css/tab-bar.css */
-
-:host {
-  display: flex;
-  justify-content: center;
+/* FORCE tab bar to be floating and centered */
+tab-bar {
+  position: fixed !important;
+  left: 0;
+  right: 0;
+  bottom: 16px;
+  display: flex !important;
+  justify-content: center !important;
+  width: 100%;
+  z-index: 9999;
   pointer-events: none;
 }
 
-/* Pill container */
-.tab-pill {
-  pointer-events: auto;
+/* The pill itself */
+.tb-pill {
   width: calc(100% - 32px);
   max-width: 760px;
   height: 66px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  backdrop-filter: blur(20px) saturate(140%);
   border-radius: 26px;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  align-items: center;
+
+  background: linear-gradient(180deg, #121418f5, #0e1014f2, #0a0c10ef);
+  backdrop-filter: blur(22px) saturate(140%);
+  border: 1px solid rgba(255,255,255,0.04);
+
+  pointer-events: auto;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Tab item */
-.tab-item {
+/* 5-section grid */
+.tb-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  justify-items: center;
+  align-items: center;
+}
+
+/* Individual tab */
+.tb-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  color: rgba(255,255,255,0.40);
   cursor: pointer;
-  transition: 0.2s ease;
-  color: var(--text-tertiary);
+  transition: 0.18s ease;
+  font-size: 12px;
 }
 
-.tab-item svg {
+.tb-item svg {
   width: 24px;
   height: 24px;
   stroke: currentColor;
-  fill: none;
   stroke-width: 2;
-  opacity: 0.55;
-  transition: 0.2s ease;
+  fill: none;
 }
 
-.tab-item.active {
-  color: var(--text-primary);
+.tb-item.active {
+  color: #fff;
   transform: translateY(-3px);
 }
 
-.tab-item.active svg {
-  opacity: 1;
-}
-
 /* FAB */
-.fab-wrapper {
-  position: absolute;
-  left: 50%;
-  top: -30px;
-  transform: translateX(-50%);
+.tb-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.fab-btn {
+.tb-fab {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 68px;
   height: 68px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 12px 30px var(--shadow-strong);
+  border-radius: 999px;
+
+  background: linear-gradient(45deg, #2563eb, #06b6d4, #2dd4bf);
+  box-shadow: 
+    0 18px 46px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  border: none;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
+  transition: transform 140ms cubic-bezier(.2,.6,.3,1);
   cursor: pointer;
-  transition: transform var(--anim-fast) ease;
+  pointer-events: auto;
 }
 
-.fab-btn svg {
-  width: 36px;
-  height: 36px;
+.tb-fab svg {
+  width: 45px;
+  height: 45px;
   stroke: white;
-  stroke-width: 2.5;
+  stroke-width: 2.7;
 }
 
-.fab-btn:active {
-  transform: translateY(2px) scale(0.95);
+.tb-fab.tap {
+  transform: translateX(-50%) scale(0.93);
 }
 
-/* Tap animation */
-.fab-btn.tap {
-  animation: fabPulse 0.25s ease;
+/* AI glow animation */
+#tab-ai.active svg {
+  stroke: url(#aiGradient);
+  filter: drop-shadow(0 0 12px rgba(37,99,235,0.8));
+  animation: aiPulse 2.4s ease-in-out infinite;
 }
 
-@keyframes fabPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(0.86); }
-  100% { transform: scale(1); }
+@keyframes aiPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 12px rgba(37,99,235,0.7));
+  }
+  50% {
+    filter: drop-shadow(0 0 22px rgba(6,182,212,0.8));
+  }
 }
