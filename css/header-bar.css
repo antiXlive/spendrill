@@ -1,0 +1,28 @@
+/* css/header-bar.css */
+
+:host {
+  display: flex;
+  height: 60px;
+  padding: env(safe-area-inset-top, 10px) 16px 0 16px;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-main);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  z-index: 9000;
+}
+
+.header-container {
+  width: 100%;
+  max-width: 780px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}

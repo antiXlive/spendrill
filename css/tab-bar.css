@@ -1,0 +1,96 @@
+/* css/tab-bar.css */
+
+:host {
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Pill container */
+.tab-pill {
+  pointer-events: auto;
+  width: calc(100% - 32px);
+  max-width: 760px;
+  height: 66px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(20px) saturate(140%);
+  border-radius: 26px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: center;
+  position: relative;
+}
+
+/* Tab item */
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: 0.2s ease;
+  color: var(--text-tertiary);
+}
+
+.tab-item svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  opacity: 0.55;
+  transition: 0.2s ease;
+}
+
+.tab-item.active {
+  color: var(--text-primary);
+  transform: translateY(-3px);
+}
+
+.tab-item.active svg {
+  opacity: 1;
+}
+
+/* FAB */
+.fab-wrapper {
+  position: absolute;
+  left: 50%;
+  top: -30px;
+  transform: translateX(-50%);
+}
+
+.fab-btn {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 12px 30px var(--shadow-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--anim-fast) ease;
+}
+
+.fab-btn svg {
+  width: 36px;
+  height: 36px;
+  stroke: white;
+  stroke-width: 2.5;
+}
+
+.fab-btn:active {
+  transform: translateY(2px) scale(0.95);
+}
+
+/* Tap animation */
+.fab-btn.tap {
+  animation: fabPulse 0.25s ease;
+}
+
+@keyframes fabPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.86); }
+  100% { transform: scale(1); }
+}

@@ -1,0 +1,72 @@
+/* css/home-screen.css */
+
+.home-container {
+  padding: 16px;
+  color: var(--text-primary);
+}
+
+.empty {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 40px;
+  gap: 14px;
+  color: var(--text-secondary);
+}
+
+.empty button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.tx-card {
+  display: flex;
+  justify-content: space-between;
+  background: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--anim-fast);
+}
+
+.tx-card:hover {
+  background: var(--icon-bg);
+}
+
+.tx-card .left .cat {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tx-card .left .note {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.tx-card .right {
+  text-align: right;
+}
+
+.tx-card .right .amt {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--expense);
+}
+
+.tx-card .right .date {
+  font-size: 12px;
+  color: var(--text-secondary);
+}

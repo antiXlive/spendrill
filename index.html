@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" data-theme="midnight">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Spendrill — Expense Manager</title>
+
+  <!-- Theme + App CSS -->
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/app.css">
+
+  <!-- Component-level CSS will be imported by components -->
+</head>
+<body>
+
+  <!-- PIN screen (may be hidden in dev) -->
+  <pin-screen></pin-screen>
+
+  <!-- Header & Tab bar -->
+  <header-bar></header-bar>
+  <tab-bar></tab-bar>
+
+  <!-- Screens -->
+  <home-screen data-screen="home"></home-screen>
+  <ai-screen data-screen="ai"></ai-screen>
+  <stats-screen data-screen="stats"></stats-screen>
+  <settings-screen data-screen="settings"></settings-screen>
+
+  <!-- Entry sheet -->
+  <entry-sheet></entry-sheet>
+
+  <!-- Toast root -->
+  <div id="toast-root"></div>
+
+  <!-- Dexie -->
+  <script src="https://unpkg.com/dexie@3.2.2/dist/dexie.min.js"></script>
+
+  <!-- App bootstrap -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+/* css/stats-screen.css */
+
+.stats-container {
+  padding: 18px;
+  color: var(--text-primary);
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.section-title {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.stat-card {
+  display: flex;
+  justify-content: space-between;
+  background: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+}
+
+.left {
+  color: var(--text-primary);
+}
+
+.right {
+  color: var(--expense);
+  font-weight: 700;
+}

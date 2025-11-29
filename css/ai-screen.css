@@ -1,0 +1,41 @@
+/* css/ai-screen.css */
+
+.ai-container {
+  padding: 18px;
+  color: var(--text-primary);
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.desc {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 18px;
+}
+
+.ai-block {
+  display: grid;
+  gap: 14px;
+}
+
+.ai-card {
+  background: var(--card-bg);
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.label {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.value {
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 6px;
+}
