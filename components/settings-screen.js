@@ -23,7 +23,6 @@ class SettingsScreen extends HTMLElement {
   connectedCallback() {
     // render UI
     this.innerHTML = `
-      <link rel="stylesheet" href="../css/settings-screen.css">
 
       <div class="wrap settings-wrap" data-screen="settings">
         <div class="settings-container">

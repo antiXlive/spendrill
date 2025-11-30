@@ -3,27 +3,8 @@
    This is the master CSS file that coordinates all styles
 */
 
-/* =========================================================
-   1. CORE THEME & VARIABLES
-   ========================================================= */
-@import url('./theme.css');
 
-/* =========================================================
-   2. GLOBAL LAYOUT SYSTEM
-   ========================================================= */
-@import url('./layout.css');
 
-/* =========================================================
-   3. COMPONENT STYLES
-   ========================================================= */
-@import url('./header-bar.css');
-@import url('./tab-bar.css');
-@import url('./home-screen.css');
-@import url('./entry-sheet.css');
-@import url('./stats-screen.css');
-@import url('./settings-screen.css');
-@import url('./ai-screen.css');
-@import url('./pin-screen.css');
 
 /* =========================================================
    4. GLOBAL RESETS & UTILITIES (Additional)
