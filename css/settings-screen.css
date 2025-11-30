@@ -1,52 +1,128 @@
-/* css/settings-screen.css */
+/* css/settings-screen.css
+   Dark mobile-first styles for Settings screen
+   Use global theme tokens via :root[data-theme="..."] in your theme.css
+*/
 
-.settings-container {
-  padding: 18px;
-  color: var(--text-primary);
+:root {
+  --bg-main: #050b16;
+  --card-bg: rgba(255,255,255,0.02);
+  --card-border: rgba(255,255,255,0.04);
+  --text-main: #eaf2ff;
+  --muted: rgba(255,255,255,0.55);
+  --accent: linear-gradient(135deg,#2563eb,#06b6d4);
+  --danger-bg: rgba(255,40,40,0.10);
+  --danger-text: #ff9b9b;
+  --glass: rgba(255,255,255,0.03);
 }
 
-.title {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 14px;
-}
+/* container */
+.settings-wrap { min-height: 100vh; box-sizing: border-box; padding: 18px; background: var(--bg-main); color: var(--text-main); -webkit-font-smoothing:antialiased; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
 
-.settings-group {
-  background: var(--card-bg);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+/* overall card */
+.card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
   padding: 14px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.45);
 }
 
-.label {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-}
+/* header */
+.settings-header { margin-bottom: 12px; }
+.title { margin: 0; font-size: 20px; font-weight: 700; color: var(--text-main); }
+.meta { font-size: 13px; color: var(--muted); margin-top: 6px; }
 
-select {
-  width: 100%;
-  padding: 10px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-  border-radius: var(--radius-md);
-}
+/* card rows */
+.card-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; }
+.card-row.small-gap { padding:8px 0; }
 
-button {
-  width: 100%;
-  padding: 12px;
-  background: var(--accent);
-  border: none;
-  border-radius: var(--radius-md);
-  color: white;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  margin-bottom: 10px;
-}
+/* titles */
+.card-title { font-weight:700; font-size:14px; color:var(--text-main); margin-bottom:6px; }
+.card-sub { color:var(--muted); font-size:13px; margin-bottom:6px; }
+.mini-title { font-weight:700; color:var(--text-main); }
+.mini-sub { color:var(--muted); font-size:13px; margin-top:4px; }
 
-button:last-child {
-  margin-bottom: 0;
+/* buttons */
+.btn {
+  border-radius:10px;
+  padding:8px 12px;
+  min-width:72px;
+  border:0;
+  cursor:pointer;
+  font-weight:700;
+  font-size:13px;
+  background:transparent;
+  color:var(--text-main);
+  box-sizing:border-box;
+}
+.btn:hover { opacity:0.95; transform:translateY(-1px); transition: all 0.12s ease; }
+
+/* variants */
+.btn-ghost { background: var(--glass); border: 1px solid var(--card-border); }
+.btn-acc { background: var(--accent); color: #fff; box-shadow: 0 8px 22px rgba(37,99,235,0.12); border: none; }
+.btn-danger { background: var(--danger-bg); color: var(--danger-text); border: 1px solid rgba(255,40,40,0.06); }
+
+/* categories manager */
+.cat-mgr-list { display:flex; flex-direction:column; gap:10px; margin-top:8px; }
+.cat-row {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px;
+  border-radius:10px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.02);
+}
+.cat-main { display:flex; gap:12px; align-items:center; flex:1; }
+.emoji-btn {
+  font-size:18px;
+  padding:8px;
+  border-radius:8px;
+  background: transparent;
+  border:1px solid rgba(255,255,255,0.02);
+  cursor:pointer;
+}
+.cat-info { display:flex; flex-direction:column; gap:4px; }
+.cat-name { font-weight:700; color:var(--text-main); }
+.cat-subtext { font-size:13px; color:var(--muted); }
+
+/* actions under each category */
+.cat-actions { display:flex; gap:8px; align-items:center; margin-left:10px; }
+
+/* subpanel */
+.subpanel { margin-top:8px; padding-top:10px; }
+.sub-list { display:flex; flex-direction:column; gap:8px; }
+.sub-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.02); }
+.sub-left { color:var(--text-main); font-size:13px; }
+.sub-actions { display:flex; gap:8px; }
+
+/* empty */
+.empty { color: rgba(255,255,255,0.45); font-style:italic; padding:8px; }
+
+/* toast */
+.settings-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%) translateY(6px);
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  opacity: 0;
+  transition: opacity .18s ease, transform .18s ease;
+  z-index: 10000;
+  font-size: 13px;
+  pointer-events: none;
+}
+.settings-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* responsive */
+@media (max-width:480px) {
+  .settings-wrap { padding:12px; }
+  .card { padding:12px; }
+  .btn { min-width:64px; padding:8px 10px; }
+  .emoji-btn { padding:6px; font-size:16px; }
 }
