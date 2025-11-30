@@ -1,53 +1,59 @@
 // js/state.js
-import * as DB from './db.js';
-import { THEMES } from './constants.js';
+// Central state manager for Spendrill
 
-const state = {
+import * as DB from "./db.js";
+
+let _state = {
   transactions: [],
   categories: [],
-  settings: {
-    biometricEnabled: false,
-    backupDirName: null,
-    theme: 'midnight'
-  },
+  settings: {},
   pinHash: null
 };
 
-export async function loadSnapshot() {
-  await DB.initDB();
-  state.transactions = await DB.getAllTransactions();
-  const cats = await DB.getCategories();
-  state.categories = (cats && cats.length) ? cats.map(c=>c.name) : ['Food','Transport','Groceries','Bills','Entertainment','Other'];
-  const pin = await DB.getSettingValue('pin_hash');
-  state.pinHash = pin || null;
-  const theme = await DB.getSettingValue('theme');
-  if (theme && THEMES.includes(theme)) state.settings.theme = theme;
-  const bio = await DB.getSettingValue('biometricEnabled');
-  state.settings.biometricEnabled = !!bio;
-  const backup = await DB.getSettingValue('backupDirName');
-  state.settings.backupDirName = backup || null;
-  return structuredClone(state);
-}
+const StateModule = {
+  getState() {
+    return _state;
+  },
 
-export async function saveTheme(theme) {
-  if (!THEMES.includes(theme)) throw new Error('Unknown theme');
-  state.settings.theme = theme;
-  await DB.saveSetting('theme', theme);
-}
+  // Load everything from DB into a single state object
+  async loadSnapshot() {
+    const transactions = await DB.db.transactions.toArray();
+    const categories = await DB.db.categories.toArray();
+    const settingsArray = await DB.db.settings.toArray();
 
-export function getTheme() {
-  return state.settings.theme;
-}
+    const settings = {};
+    for (const row of settingsArray) {
+      settings[row.key] = row.value;
+    }
 
-export function getState() { return structuredClone(state); }
+    // ENRICH transactions with category/subcategory names
+    const enrichedTransactions = transactions.map(tx => {
+      const cat = categories.find(c => c.id === tx.catId);
+      const sub = cat?.subcategories?.find(s => s.id === tx.subId);
 
-export async function setPinHash(hash) {
-  state.pinHash = hash;
-  await DB.saveSetting('pin_hash', hash);
-}
+      return {
+        ...tx,
+        catName: cat?.name || "Uncategorized",
+        subName: sub?.name || "",
+        emoji: cat?.emoji || "🧾"
+      };
+    });
 
-export function verifyPinHash(hash) { return !!state.pinHash && state.pinHash === hash; }
+    _state = {
+      transactions: enrichedTransactions,
+      categories,
+      settings,
+      pinHash: settings.pinHash || null
+    };
 
-export default {
-  loadSnapshot, saveTheme, getTheme, getState, setPinHash, verifyPinHash
+    return _state;
+  },
+
+  // Save pin hash in settings + local state
+  async setPinHash(hash) {
+    await DB.saveSetting("pinHash", hash);
+    _state.pinHash = hash;
+  }
 };
+
+export default StateModule;

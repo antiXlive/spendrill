@@ -1,5 +1,6 @@
 // components/settings-screen.js
 import { EventBus } from "../js/event-bus.js";
+import * as DB from "../js/db.js";
 import { THEMES } from "../js/constants.js";
 
 class SettingsScreen extends HTMLElement {
@@ -24,7 +25,6 @@ class SettingsScreen extends HTMLElement {
 
   render() {
     this.innerHTML = `
-      
       <div class="settings-container">
         <div class="title">Settings</div>
 
@@ -41,6 +41,10 @@ class SettingsScreen extends HTMLElement {
           <button id="exportBtn">Export JSON</button>
           <button id="importBtn">Import JSON</button>
         </div>
+
+        <div class="settings-group">
+          <button id="resetBtn" class="danger">Reset Everything (Clear All Data)</button>
+        </div>
       </div>
     `;
   }
@@ -50,27 +54,32 @@ class SettingsScreen extends HTMLElement {
       EventBus.emit("theme-change", { theme: e.target.value });
     });
 
-    this.querySelector("#backupBtn").addEventListener("click", () => {
-      EventBus.emit("choose-backup-folder", {});
-    });
+    this.querySelector("#backupBtn").addEventListener("click", () =>
+      EventBus.emit("choose-backup-folder")
+    );
 
-    this.querySelector("#exportBtn").addEventListener("click", () => {
-      EventBus.emit("export-json");
-    });
+    this.querySelector("#exportBtn").addEventListener("click", () =>
+      EventBus.emit("export-json")
+    );
 
-    this.querySelector("#importBtn").addEventListener("click", () => {
-      EventBus.emit("import-json");
+    this.querySelector("#importBtn").addEventListener("click", () =>
+      EventBus.emit("import-json")
+    );
+
+    this.querySelector("#resetBtn").addEventListener("click", async () => {
+      if (!confirm("Are you sure? This will erase ALL data.")) return;
+
+      await DB.wipeAll();
+      location.reload(); // restart fresh
     });
   }
 
   update() {
     if (!this.state) return;
 
-    // Populate theme selector
     const select = this.querySelector("#themeSelect");
     select.innerHTML = THEMES.map(
-      (t) =>
-        `<option value="${t}" ${this.state.settings.theme === t ? "selected" : ""}>${t}</option>`
+      (t) => `<option value="${t}" ${this.state.settings.theme === t ? "selected" : ""}>${t}</option>`
     ).join("");
   }
 }

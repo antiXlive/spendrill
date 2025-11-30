@@ -2,28 +2,99 @@
 /* Multi-theme system — each theme exposes the same tokens.
    Switch theme by setting data-theme on <html>, e.g. <html data-theme="aqua"> */
 
+/* =========================================================
+   SPENDRILL — GLOBAL THEME SYSTEM
+   (tokens, base resets, visibility, dark theme)
+   ========================================================= */
+
+/* Dark Theme Variables */
 :root {
-  /* Fallback tokens */
   --bg-main: #050B16;
-  --bg-surface: #0A1220;
-  --text-primary: #F2F7FF;
-  --text-secondary: #7E8FA8;
-  --text-tertiary: #63738C;
-  --accent: #3B82F6;
-  --accent-glow: rgba(59,130,246,0.35);
-  --expense: #FF5E79;
-  --icon-bg: rgba(255,255,255,0.07);
-  --card-bg: rgba(255,255,255,0.03);
-  --border-subtle: rgba(255,255,255,0.06);
-  --shadow-strong: rgba(0,0,0,0.45);
+  --bg-card: rgba(255,255,255,0.04);
+  --bg-card-strong: rgba(255,255,255,0.06);
+  --bg-blur: rgba(0,0,0,0.55);
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
+  --text-main: #F2F7FF;
+  --text-sub: #7E8FA8;
+  --text-muted: #63738C;
 
-  --anim-fast: 150ms;
-  --anim-medium: 220ms;
+  --border-light: rgba(255,255,255,0.06);
+
+  --accent-blue: #2563eb;
+  --accent-cyan: #06b6d4;
+  --accent-mint: #2dd4bf;
+
+  --expense-color: #FF5E79;
+
+  /* Safe Areas */
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: calc(env(safe-area-inset-bottom) + 12px);
+
+  /* Radii */
+  --radius-small: 8px;
+  --radius-medium: 14px;
+  --radius-large: 20px;
+
+  /* Shadows */
+  --shadow-1: 0 4px 12px rgba(0,0,0,0.35);
+  --shadow-2: 0 12px 30px rgba(0,0,0,0.5);
 }
+
+/* =========================================================
+   Global Reset
+   ========================================================= */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+
+  /* Remove blue tap highlight */
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+               Inter, Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Prevent scroll on body when entry sheet opens */
+body.no-scroll {
+  overflow: hidden !important;
+}
+
+/* For custom elements that use router visibility */
+[data-screen][hidden] {
+  display: none !important;
+}
+
+/* Smooth transitions for screen switching */
+[data-screen] {
+  transition: opacity 0.2s ease;
+}
+
+/* Maintain layout integrity for floating elements */
+tab-bar,
+header-bar,
+entry-sheet {
+  position: relative;
+  z-index: 999;
+}
+
+/* Custom Scrollbar (Dark) */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+}
+
 
 /* MIDNIGHT (default) */
 :root[data-theme="midnight"] {

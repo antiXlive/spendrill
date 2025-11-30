@@ -1,19 +1,33 @@
-// js/utils.js
-export async function sha256Hex(text) {
-  const enc = new TextEncoder();
-  const data = enc.encode(text);
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  const arr = Array.from(new Uint8Array(hash));
-  return arr.map(b => b.toString(16).padStart(2,'0')).join('');
-}
+// /js/utils.js
+// Common helpers used across app
 
+// Generate v4 UUID
+// /js/utils.js
+
+// Fallback UUID v4 generator (browser-safe)
 export function uuidv4() {
-  const buf = new Uint8Array(16);
-  crypto.getRandomValues(buf);
-  buf[6] = (buf[6] & 0x0f) | 0x40;
-  buf[8] = (buf[8] & 0x3f) | 0x80;
-  const hex = Array.from(buf).map(b => b.toString(16).padStart(2,'0'));
-  return `${hex.slice(0,4).join('')}-${hex.slice(4,6).join('')}-${hex.slice(6,8).join('')}-${hex.slice(8,10).join('')}-${hex.slice(10,16).join('')}`;
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (crypto.getRandomValues(new Uint8Array(1))[0] % 16);
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 }
 
-export function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+// Hash (used for PIN)
+export async function sha256Hex(str) {
+  const enc = new TextEncoder().encode(str);
+  const hash = await crypto.subtle.digest("SHA-256", enc);
+  return [...new Uint8Array(hash)]
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// Convert a name → predictable ID
+// Example: "Restaurants & Cafes 🍴" → "restaurants_cafes"
+export function slugify(str = "") {
+  return str
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
