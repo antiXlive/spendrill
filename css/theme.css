@@ -4,7 +4,6 @@
 
 /* =========================================================
    SPENDRILL — GLOBAL THEME SYSTEM
-   (tokens, base resets, visibility, dark theme)
    ========================================================= */
 
 /* Dark Theme Variables */
@@ -23,12 +22,11 @@
   --accent-blue: #2563eb;
   --accent-cyan: #06b6d4;
   --accent-mint: #2dd4bf;
-
   --expense-color: #FF5E79;
 
   /* Safe Areas */
   --safe-top: env(safe-area-inset-top);
-  --safe-bottom: calc(env(safe-area-inset-bottom) + 12px);
+  --safe-bottom: env(safe-area-inset-bottom);
 
   /* Radii */
   --radius-small: 8px;
@@ -38,6 +36,10 @@
   /* Shadows */
   --shadow-1: 0 4px 12px rgba(0,0,0,0.35);
   --shadow-2: 0 12px 30px rgba(0,0,0,0.5);
+
+  /* Layout Heights - CRITICAL */
+  --header-height: calc(58px + env(safe-area-inset-top));
+  --tabbar-height: calc(76px + env(safe-area-inset-bottom));
 }
 
 /* =========================================================
@@ -47,8 +49,6 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-
-  /* Remove blue tap highlight */
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
@@ -58,35 +58,92 @@ html, body {
   height: 100%;
   background: var(--bg-main);
   color: var(--text-main);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
-               Inter, Roboto, sans-serif;
-  overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, Roboto, sans-serif;
+  overflow: hidden;
+  position: fixed;
 }
 
-/* Prevent scroll on body when entry sheet opens */
 body.no-scroll {
   overflow: hidden !important;
 }
 
-/* For custom elements that use router visibility */
+/* =========================================================
+   APP ROOT - THE KEY CONTAINER
+   ========================================================= */
+
+.app-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  
+  display: flex;
+  flex-direction: column;
+  
+  background: var(--bg-main);
+  overflow: hidden;
+}
+
+/* =========================================================
+   HEADER - FIXED AT TOP (FLOATS OVER CONTENT)
+   ========================================================= */
+
+header-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
+  z-index: 9999;
+  pointer-events: auto;
+}
+
+/* =========================================================
+   TAB BAR - FIXED AT BOTTOM (FLOATS OVER CONTENT)
+   ========================================================= */
+
+tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--tabbar-height);
+  z-index: 999;
+  pointer-events: auto;
+}
+
+/* =========================================================
+   SCREENS - SCROLLABLE WITH PADDING FOR HEADER/TABBAR
+   Content scrolls UNDER the header (for blur effect)
+   ========================================================= */
+
+[data-screen] {
+  position: fixed;
+  top: 0;              /* ✅ Starts at top (behind header) */
+  left: 0;
+  right: 0;
+  bottom: 0;           /* ✅ Goes to bottom (behind tabbar) */
+  
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  
+  /* ✅ Padding to avoid header/tabbar overlap */
+  padding-top: var(--header-height);
+  padding-bottom: var(--tabbar-height);
+  
+  background: var(--bg-main);
+  box-sizing: border-box;
+}
+
+/* Router visibility */
 [data-screen][hidden] {
   display: none !important;
 }
 
-/* Smooth transitions for screen switching */
-[data-screen] {
-  transition: opacity 0.2s ease;
-}
-
-/* Maintain layout integrity for floating elements */
-tab-bar,
-header-bar,
-entry-sheet {
-  position: relative;
-  z-index: 999;
-}
-
-/* Custom Scrollbar (Dark) */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -95,8 +152,10 @@ entry-sheet {
   border-radius: 3px;
 }
 
+/* ================================
+   THEMES
+   ================================ */
 
-/* MIDNIGHT (default) */
 :root[data-theme="midnight"] {
   --bg-main: #050B16;
   --bg-surface: #0A1220;
@@ -112,7 +171,6 @@ entry-sheet {
   --shadow-strong: rgba(0,0,0,0.45);
 }
 
-/* AQUA NEON */
 :root[data-theme="aqua"] {
   --bg-main: #021012;
   --bg-surface: #04191C;
@@ -128,95 +186,62 @@ entry-sheet {
   --shadow-strong: rgba(0,0,0,0.40);
 }
 
-/* SUNSET INFERNO */
-:root[data-theme="sunset"] {
-  --bg-main: #120708;
-  --bg-surface: #1E0A0C;
-  --text-primary: #FFECEC;
-  --text-secondary: #FFADAD;
-  --text-tertiary: #E28181;
-  --accent: #FF6B6B;
-  --accent-glow: rgba(255,107,107,0.30);
-  --expense: #FF8B4A;
+:root[data-theme="purple"] {
+  --bg-main: #0F0515;
+  --bg-surface: #1A0A25;
+  --text-primary: #F5EBFF;
+  --text-secondary: #B794E8;
+  --text-tertiary: #8B68C7;
+  --accent: #A855F7;
+  --accent-glow: rgba(168,85,247,0.38);
+  --expense: #FF5E79;
+  --icon-bg: rgba(255,255,255,0.10);
+  --card-bg: rgba(255,255,255,0.05);
+  --border-subtle: rgba(255,255,255,0.08);
+  --shadow-strong: rgba(0,0,0,0.42);
+}
+
+:root[data-theme="forest"] {
+  --bg-main: #0A1410;
+  --bg-surface: #0F1F18;
+  --text-primary: #E8FFF4;
+  --text-secondary: #7FD9A8;
+  --text-tertiary: #5AAF7E;
+  --accent: #10B981;
+  --accent-glow: rgba(16,185,129,0.36);
+  --expense: #FF5E79;
   --icon-bg: rgba(255,255,255,0.08);
   --card-bg: rgba(255,255,255,0.04);
   --border-subtle: rgba(255,255,255,0.07);
-  --shadow-strong: rgba(0,0,0,0.55);
+  --shadow-strong: rgba(0,0,0,0.43);
 }
 
-/* MATTE GRAY */
-:root[data-theme="matte"] {
-  --bg-main: #0E0E0F;
-  --bg-surface: #1A1A1C;
-  --text-primary: #F1F1F1;
-  --text-secondary: #B5B5B8;
-  --text-tertiary: #8D8D91;
-  --accent: #9CA3AF;
-  --accent-glow: rgba(156,163,175,0.35);
-  --expense: #F87171;
+:root[data-theme="ember"] {
+  --bg-main: #160707;
+  --bg-surface: #220B0B;
+  --text-primary: #FFE8E8;
+  --text-secondary: #FF9B9B;
+  --text-tertiary: #D66B6B;
+  --accent: #EF4444;
+  --accent-glow: rgba(239,68,68,0.40);
+  --expense: #FF5E79;
+  --icon-bg: rgba(255,255,255,0.09);
+  --card-bg: rgba(255,255,255,0.04);
+  --border-subtle: rgba(255,255,255,0.07);
+  --shadow-strong: rgba(0,0,0,0.44);
+}
+
+:root[data-theme="sunset"] {
+  --bg-main: #1A0F05;
+  --bg-surface: #251808;
+  --text-primary: #FFF4E0;
+  --text-secondary: #FFB84D;
+  --text-tertiary: #D9943D;
+  --accent: #F59E0B;
+  --accent-glow: rgba(245,158,11,0.38);
+  --expense: #FF5E79;
   --icon-bg: rgba(255,255,255,0.08);
   --card-bg: rgba(255,255,255,0.04);
-  --border-subtle: rgba(255,255,255,0.12);
-  --shadow-strong: rgba(0,0,0,0.60);
-}
-
-/* PREMIUM ADD-ONS (4 extra themes) */
-:root[data-theme="neon-purple"] {
-  --bg-main: #0A0416;
-  --bg-surface: #120721;
-  --text-primary: #F7EBFF;
-  --text-secondary: #D6B3FF;
-  --text-tertiary: #B58EE6;
-  --accent: #8B5CF6;
-  --accent-glow: rgba(139,92,246,0.35);
-  --expense: #FF6B9A;
-  --icon-bg: rgba(255,255,255,0.06);
-  --card-bg: rgba(255,255,255,0.03);
-  --border-subtle: rgba(255,255,255,0.06);
-  --shadow-strong: rgba(0,0,0,0.5);
-}
-
-:root[data-theme="peach-soda"] {
-  --bg-main: #140B07;
-  --bg-surface: #1E0F0D;
-  --text-primary: #FFF6F3;
-  --text-secondary: #FFD7C2;
-  --text-tertiary: #EFBBA6;
-  --accent: #FF8A65;
-  --accent-glow: rgba(255,138,101,0.28);
-  --expense: #FF6B6B;
-  --icon-bg: rgba(255,255,255,0.06);
-  --card-bg: rgba(255,255,255,0.03);
-  --border-subtle: rgba(255,255,255,0.06);
-  --shadow-strong: rgba(0,0,0,0.5);
-}
-
-:root[data-theme="forest-mint"] {
-  --bg-main: #07140C;
-  --bg-surface: #0E2419;
-  --text-primary: #E9FFF5;
-  --text-secondary: #A7F3D0;
-  --text-tertiary: #79E3B2;
-  --accent: #34D399;
-  --accent-glow: rgba(52,211,153,0.30);
-  --expense: #FF8B8B;
-  --icon-bg: rgba(255,255,255,0.06);
-  --card-bg: rgba(255,255,255,0.03);
-  --border-subtle: rgba(255,255,255,0.06);
-  --shadow-strong: rgba(0,0,0,0.45);
-}
-
-:root[data-theme="oled-black"] {
-  --bg-main: #000000;
-  --bg-surface: #050505;
-  --text-primary: #E6EEF8;
-  --text-secondary: #9AA6B2;
-  --text-tertiary: #6F7B86;
-  --accent: #00E5FF;
-  --accent-glow: rgba(0,229,255,0.28);
-  --expense: #FF4D6D;
-  --icon-bg: rgba(255,255,255,0.04);
-  --card-bg: rgba(255,255,255,0.02);
-  --border-subtle: rgba(255,255,255,0.04);
-  --shadow-strong: rgba(0,0,0,0.75);
+  --border-subtle: rgba(255,255,255,0.07);
+  --shadow-strong: rgba(0,0,0,0.42);
 }

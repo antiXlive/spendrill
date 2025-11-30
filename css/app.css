@@ -1,142 +1,263 @@
-/* =========================================================
-   SPENDRILL — APP LAYOUT & GLOBAL STYLES
-   ========================================================= */
-
-/* Main App Container */
-.app-root {
-  padding-top: calc(var(--safe-top) + 54px);
-  padding-bottom: calc(var(--safe-bottom) + 76px);
-}
-
-/* Header Bar spacing */
-header-bar {
-  top: var(--safe-top);
-}
-
-/* Tab bar spacing */
-tab-bar {
-  margin-bottom: var(--safe-bottom);
-}
+/* css/app.css
+   SPENDRILL — Main Stylesheet Entry Point
+   This is the master CSS file that coordinates all styles
+*/
 
 /* =========================================================
-   Toast System
+   1. CORE THEME & VARIABLES
    ========================================================= */
-#toast-root {
-  position: fixed;
-  left: 50%;
-  top: calc(var(--safe-top) + 14px);
-  transform: translateX(-50%);
-  z-index: 99999;
-  pointer-events: none;
-}
-
-.toast {
-  background: rgba(255, 255, 255, 0.08);
-  padding: 12px 18px;
-  margin-top: 10px;
-  color: var(--text-main);
-  border-radius: var(--radius-medium);
-  border: 1px solid rgba(255,255,255,0.1);
-  backdrop-filter: blur(12px);
-  box-shadow: var(--shadow-1);
-  opacity: 0;
-  transform: translateY(-8px);
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-
-.toast.show {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.toast.hide {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-
-/* Toast color variants */
-.toast.success { border-color: #2dd4bf; }
-.toast.error { border-color: #ff5e79; }
-.toast.info { border-color: #06b6d4; }
+@import url('./theme.css');
 
 /* =========================================================
-   Entry Sheet Animation
+   2. GLOBAL LAYOUT SYSTEM
    ========================================================= */
-.entry-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.65);
-  backdrop-filter: blur(12px);
-  opacity: 0;
-  transition: opacity 0.22s ease;
-  pointer-events: none;
+@import url('./layout.css');
+
+/* =========================================================
+   3. COMPONENT STYLES
+   ========================================================= */
+@import url('./header-bar.css');
+@import url('./tab-bar.css');
+@import url('./home-screen.css');
+@import url('./entry-sheet.css');
+@import url('./stats-screen.css');
+@import url('./settings-screen.css');
+@import url('./ai-screen.css');
+@import url('./pin-screen.css');
+
+/* =========================================================
+   4. GLOBAL RESETS & UTILITIES (Additional)
+   ========================================================= */
+
+/* Ensure smooth scrolling */
+html {
+  scroll-behavior: smooth;
 }
 
-.entry-overlay.show {
-  opacity: 1;
-  pointer-events: auto;
+/* Better text rendering */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-.entry-sheet {
-  position: fixed;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%) translateY(100%);
-  width: 100%;
-  max-width: 760px;
-  background: linear-gradient(180deg, #111827, #0f1419);
-  border-radius: 22px 22px 0 0;
-  padding: 24px 20px 120px;
-  transition: transform 0.23s cubic-bezier(.18, .89, .32, 1);
-  border: 1px solid rgba(255,255,255,0.07);
-}
-
-.entry-sheet.show {
-  transform: translateX(-50%) translateY(0);
-}
-
-/* Bottom sticky action bar */
-.entry-actions {
-  position: fixed;
-  left: 50%;
-  bottom: 20px;
-  transform: translateX(-50%);
-  width: calc(100% - 36px);
-  max-width: 760px;
-  display: flex;
-  gap: 10px;
-  opacity: 0;
-  transition: opacity 0.18s ease;
-}
-
-.entry-actions.show {
-  opacity: 1;
-}
-
-/* Buttons */
-.entry-btn {
-  flex: 1;
-  padding: 14px;
-  border-radius: var(--radius-medium);
-  font-weight: 700;
-  border: none;
+/* Remove default button styles */
+button {
+  font-family: inherit;
   cursor: pointer;
+  border: none;
+  background: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.entry-btn.cancel {
-  background: rgba(255,255,255,0.05);
-  color: var(--text-main);
-  border: 1px solid rgba(255,255,255,0.08);
+/* Remove default input styles */
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: none;
+  background: none;
+  outline: none;
 }
 
-.entry-btn.save {
-  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
-  color: #fff;
-  box-shadow: 0 6px 16px rgba(37,99,235,0.35);
+/* Focus visible for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--accent-blue, #2563eb);
+  outline-offset: 2px;
 }
 
-.entry-btn.delete {
-  background: rgba(255, 70, 70, 0.12);
-  border: 1px solid rgba(255, 70, 70, 0.22);
-  color: #fca5a5;
+/* Disable text selection on UI elements */
+button,
+.header-btn,
+.tab-item,
+.tx-item {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Allow text selection in inputs */
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* =========================================================
+   5. UTILITY CLASSES
+   ========================================================= */
+
+/* Hidden utility */
+.hidden {
+  display: none !important;
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* No scroll (for modals) */
+.no-scroll {
+  overflow: hidden !important;
+  position: fixed;
+  width: 100%;
+}
+
+/* Truncate text */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   6. LOADING STATES
+   ========================================================= */
+
+.loading {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* =========================================================
+   7. ANIMATION UTILITIES
+   ========================================================= */
+
+.fade-in {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================
+   8. RESPONSIVE BREAKPOINTS
+   ========================================================= */
+
+/* Tablet */
+@media (min-width: 768px) {
+  :root {
+    --wrap-padding: 24px;
+  }
+
+  .app-root {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  :root {
+    --wrap-padding: 32px;
+  }
+}
+
+/* =========================================================
+   9. PRINT STYLES
+   ========================================================= */
+
+@media print {
+  header-bar,
+  tab-bar,
+  .header-btn,
+  .entry-actions {
+    display: none !important;
+  }
+
+  .app-root {
+    padding: 0;
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+}
+
+/* =========================================================
+   10. DARK MODE ENHANCEMENTS (if system prefers dark)
+   ========================================================= */
+
+@media (prefers-color-scheme: dark) {
+  /* Already handled by theme.css, but you can add overrides here */
+}
+
+/* =========================================================
+   11. REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =========================================================
+   12. HIGH CONTRAST MODE
+   ========================================================= */
+
+@media (prefers-contrast: high) {
+  :root {
+    --border-light: rgba(255, 255, 255, 0.3);
+  }
+
+  .tx-item,
+  .summary,
+  button {
+    border-width: 2px;
+  }
 }

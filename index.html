@@ -4,8 +4,9 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Spendrill — Expense Manager</title>
-
 
     <!-- GLOBAL CSS -->
     <link rel="stylesheet" href="css/theme.css">
@@ -20,30 +21,34 @@
     <link rel="stylesheet" href="css/header-bar.css">
     <link rel="stylesheet" href="css/tab-bar.css">
     <link rel="stylesheet" href="css/entry-sheet.css">
-
-
-    <!-- Component-level CSS will be imported by components -->
 </head>
 
 <body>
 
-    <!-- PIN screen (may be hidden in dev) -->
+    <!-- PIN screen (overlay, shown on first launch) -->
     <pin-screen></pin-screen>
 
-    <!-- Header & Tab bar -->
-    <header-bar></header-bar>
-    <tab-bar></tab-bar>
+    <!-- ✅ APP ROOT WRAPPER - THIS WAS MISSING! -->
+    <div class="app-root">
+        
+        <!-- Fixed Header -->
+        <header-bar></header-bar>
 
-    <!-- Screens -->
-    <home-screen data-screen="home"></home-screen>
-    <ai-screen data-screen="ai"></ai-screen>
-    <stats-screen data-screen="stats"></stats-screen>
-    <settings-screen data-screen="settings"></settings-screen>
+        <!-- Screens (scrollable content area) -->
+        <home-screen data-screen="home"></home-screen>
+        <ai-screen data-screen="ai" hidden></ai-screen>
+        <stats-screen data-screen="stats" hidden></stats-screen>
+        <settings-screen data-screen="settings" hidden></settings-screen>
 
-    <!-- Entry sheet -->
+        <!-- Fixed Tab Bar -->
+        <tab-bar></tab-bar>
+        
+    </div>
+
+    <!-- Entry sheet modal (outside app-root) -->
     <entry-sheet></entry-sheet>
 
-    <!-- Toast root -->
+    <!-- Toast notifications (outside app-root) -->
     <div id="toast-root"></div>
 
     <!-- Dexie -->

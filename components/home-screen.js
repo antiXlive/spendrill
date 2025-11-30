@@ -266,12 +266,12 @@ class HomeScreen extends HTMLElement {
 
   /* --------------------------
      Render base DOM
+     ⚠️ NO data-screen here - it's on the element itself in HTML
   --------------------------- */
   render() {
     this.innerHTML = `
-      <link rel="stylesheet" href="../css/home-screen.css">
 
-      <div class="wrap" data-screen="home">
+      <div class="home-content">
         <div class="summary">
           <div class="summary-left">
             <div class="month-name" id="monthName">Month</div>

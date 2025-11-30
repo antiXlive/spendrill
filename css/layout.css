@@ -1,0 +1,146 @@
+/* =========================================================
+   SPENDRILL — GLOBAL LAYOUT SYSTEM
+   This file is NO LONGER NEEDED - all layout is in theme.css
+   Keep this for backwards compatibility or delete it
+   ========================================================= */
+
+/* All layout logic moved to theme.css for better organization:
+   - .app-root positioning
+   - [data-screen] padding & scrolling
+   - header-bar and tab-bar positioning
+*/
+
+/* =========================================================
+   TOAST SYSTEM (Keep here as it's UI, not layout)
+   ========================================================= */
+
+#toast-root {
+  position: fixed;
+  left: 50%;
+  top: calc(var(--header-height) + 14px);
+  transform: translateX(-50%);
+  z-index: 99999;
+  pointer-events: none;
+}
+
+.toast {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 12px 18px;
+  margin-top: 10px;
+  color: var(--text-main);
+  border-radius: var(--radius-medium);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-1);
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.hide {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.toast--success { border-color: #2dd4bf; }
+.toast--error   { border-color: #ff5e79; }
+.toast--info    { border-color: #06b6d4; }
+
+/* =========================================================
+   ENTRY SHEET (BOTTOM MODAL)
+   ========================================================= */
+
+.entry-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(12px);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  pointer-events: none;
+  z-index: 9998;
+}
+
+.entry-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.entry-sheet {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%) translateY(100%);
+  width: 100%;
+  max-width: 760px;
+  background: linear-gradient(180deg, #111827, #0f1419);
+  border-radius: 22px 22px 0 0;
+  padding: 24px 20px calc(env(safe-area-inset-bottom) + 100px) 20px;
+  transition: transform 0.23s cubic-bezier(.18, .89, .32, 1);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  z-index: 9999;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.entry-sheet.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+.entry-actions {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 20px);
+  transform: translateX(-50%);
+  width: calc(100% - 36px);
+  max-width: 720px;
+  display: flex;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  z-index: 10000;
+}
+
+.entry-actions.show {
+  opacity: 1;
+}
+
+.entry-btn {
+  flex: 1;
+  padding: 14px;
+  border-radius: var(--radius-medium);
+  font-weight: 700;
+  font-size: 15px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.entry-btn:active {
+  transform: scale(0.97);
+}
+
+.entry-btn.cancel {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.entry-btn.save {
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+}
+
+.entry-btn.delete {
+  background: rgba(255, 70, 70, 0.12);
+  border: 1px solid rgba(255, 70, 70, 0.22);
+  color: #fca5a5;
+}
