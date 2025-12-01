@@ -1,13 +1,10 @@
 /* css/app.css
-   SPENDRILL — Main Stylesheet Entry Point
-   This is the master CSS file that coordinates all styles
+   SPENDRILL — Global Utilities & Helpers
+   Loaded after theme.css for utilities and animations
 */
 
-
-
-
 /* =========================================================
-   4. GLOBAL RESETS & UTILITIES (Additional)
+   1. GLOBAL RESETS & UTILITIES
    ========================================================= */
 
 /* Ensure smooth scrolling */
@@ -51,24 +48,15 @@ select {
   outline-offset: 2px;
 }
 
-/* Disable text selection on UI elements */
-button,
-.header-btn,
-.tab-item,
-.tx-item {
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* Allow text selection in inputs */
+/* Allow text selection in inputs (override theme.css) */
 input,
 textarea {
-  user-select: text;
-  -webkit-user-select: text;
+  user-select: text !important;
+  -webkit-user-select: text !important;
 }
 
 /* =========================================================
-   5. UTILITY CLASSES
+   2. UTILITY CLASSES
    ========================================================= */
 
 /* Hidden utility */
@@ -104,7 +92,7 @@ textarea {
 }
 
 /* =========================================================
-   6. LOADING STATES
+   3. LOADING STATES
    ========================================================= */
 
 .loading {
@@ -126,7 +114,7 @@ textarea {
 }
 
 /* =========================================================
-   7. ANIMATION UTILITIES
+   4. ANIMATION UTILITIES
    ========================================================= */
 
 .fade-in {
@@ -160,37 +148,15 @@ textarea {
 }
 
 /* =========================================================
-   8. RESPONSIVE BREAKPOINTS
-   ========================================================= */
-
-/* Tablet */
-@media (min-width: 768px) {
-  :root {
-    --wrap-padding: 24px;
-  }
-
-  .app-root {
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-}
-
-/* Desktop */
-@media (min-width: 1024px) {
-  :root {
-    --wrap-padding: 32px;
-  }
-}
-
-/* =========================================================
-   9. PRINT STYLES
+   5. PRINT STYLES
    ========================================================= */
 
 @media print {
   header-bar,
   tab-bar,
   .header-btn,
-  .entry-actions {
+  .entry-actions,
+  .es-actions {
     display: none !important;
   }
 
@@ -205,15 +171,7 @@ textarea {
 }
 
 /* =========================================================
-   10. DARK MODE ENHANCEMENTS (if system prefers dark)
-   ========================================================= */
-
-@media (prefers-color-scheme: dark) {
-  /* Already handled by theme.css, but you can add overrides here */
-}
-
-/* =========================================================
-   11. REDUCED MOTION
+   6. REDUCED MOTION (Accessibility)
    ========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
@@ -228,7 +186,7 @@ textarea {
 }
 
 /* =========================================================
-   12. HIGH CONTRAST MODE
+   7. HIGH CONTRAST MODE (Accessibility)
    ========================================================= */
 
 @media (prefers-contrast: high) {

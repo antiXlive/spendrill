@@ -13,6 +13,7 @@ class EntrySheet extends HTMLElement {
     this._selected = { catId: null, subId: null };
     this._bodyOverflow = null;
     this._tabBarDisplay = null;
+    this._keydownHandler = null;
   }
 
   connectedCallback() {
@@ -20,9 +21,13 @@ class EntrySheet extends HTMLElement {
     this._bindElements();
     this._bindEvents();
 
-    // Open add sheet
-    EventBus.on("open-entry-sheet", () => {
-      this._openForAdd();
+    // Open entry sheet - handles both add and edit
+    EventBus.on("open-entry-sheet", (tx) => {
+      if (tx && tx.id) {
+        this._openForEdit(tx);
+      } else {
+        this._openForAdd();
+      }
     });
 
     // When asked to edit, request tx from main
@@ -57,11 +62,15 @@ class EntrySheet extends HTMLElement {
       EventBus.off("state-changed");
       EventBus.off("auth-state-changed");
     } catch (e) {}
+
+    // Clean up document event listener
+    if (this._keydownHandler) {
+      document.removeEventListener("keydown", this._keydownHandler);
+    }
   }
 
   render() {
     this.innerHTML = `
-
       <div class="es-overlay" id="esOverlay" aria-hidden="true"></div>
 
       <div class="es-sheet" id="esSheet" role="dialog" aria-modal="true" aria-labelledby="esTitle">
@@ -168,8 +177,8 @@ class EntrySheet extends HTMLElement {
     this.$save.addEventListener("click", () => this._handleSave());
     this.$delete.addEventListener("click", () => this._handleDelete());
 
-    // Keyboard escape behavior on document — close or close picker
-    document.addEventListener("keydown", (e) => {
+    // Keyboard escape behavior on document
+    this._keydownHandler = (e) => {
       if (e.key === "Escape") {
         if (this.$catPicker.classList.contains("es-show")) {
           this._closeCategoryPicker();
@@ -177,7 +186,8 @@ class EntrySheet extends HTMLElement {
           this.close();
         }
       }
-    });
+    };
+    document.addEventListener("keydown", this._keydownHandler);
   }
 
   /* ---------- Category rendering & interactions ---------- */
@@ -371,21 +381,28 @@ class EntrySheet extends HTMLElement {
     const date = this.$date.value || new Date().toISOString().slice(0,10);
     const note = (this.$note.value || "").trim();
 
+    // Validate amount
     if (!amount || amount <= 0) {
       this.$amount.focus();
       EventBus.emit("toast", { message: "Enter a valid amount", type: "error" });
       return;
     }
 
+    // Validate category (optional but recommended)
+    if (!this.tx?.catId) {
+      EventBus.emit("toast", { message: "Please select a category", type: "error" });
+      return;
+    }
+
+    // Simplified payload - catName is enriched by StateModule
     const payload = {
       id: this.tx?.id ?? undefined,
       amount: amount,
       date: date,
       note: note,
       catId: this.tx?.catId ?? null,
-      catName: this.tx?.catName ?? (this._selected.catId ? (this._categories.find(c => (c.id ?? c.name) === this._selected.catId)?.name || '') : null),
-      subId: this.tx?.subId ?? this._selected.subId ?? null,
-      createdAt: new Date().toISOString()
+      subId: this.tx?.subId ?? null,
+      createdAt: this.tx?.createdAt || new Date().toISOString()
     };
 
     if (payload.id) {
@@ -399,6 +416,10 @@ class EntrySheet extends HTMLElement {
 
   _handleDelete() {
     if (!this.tx?.id) return;
+    
+    const confirmMsg = `Delete "${this.tx.note || this.tx.catName || 'this transaction'}"?`;
+    if (!confirm(confirmMsg)) return;
+    
     EventBus.emit("tx-delete", { id: this.tx.id });
     this.close();
   }
