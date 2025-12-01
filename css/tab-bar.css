@@ -3,7 +3,7 @@ tab-bar {
   position: fixed !important;
   left: 0;
   right: 0;
-  bottom: 1vh;
+  bottom: .5vh;
   display: flex !important;
   justify-content: center !important;
   width: 100%;

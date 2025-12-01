@@ -2,63 +2,48 @@
 import { EventBus } from "../js/event-bus.js";
 
 class AIScreen extends HTMLElement {
-
   constructor() {
     super();
-    this.stats = null;
+    this.images = [
+      "../img/ai.jpg",
+      "../img/ai1.png",
+      "../img/ai2.jpg",
+      "../img/ai3.png",
+      "../img/ai4.jpg",
+      "../img/ai5.jpg",
+      "../img/ai6.jpg",
+      "../img/ai7.jpg",
+      "../img/ai8.jpg",
+      "../img/ai9.jpg",
+      "../img/ai10.jpg",
+      "../img/ai11.jpg",
+      "../img/ai12.jpg",
+      "../img/ai13.jpg",
+      "../img/ai14.jpg",
+      "../img/ai15.jpg",
+
+    ];
   }
 
   connectedCallback() {
     this.render();
-    this.bindEvents();
-
-    EventBus.on("stats-ready", (stats) => {
-      this.stats = stats;
-      this.update();
-    });
-
-    EventBus.on("auth-state-changed", ({ showPin }) => {
-      this.style.display = showPin ? "none" : "block";
-    });
   }
 
   render() {
     this.innerHTML = `
-      
-      <div class="ai-container">
-        <div class="title">AI Insights</div>
-
-        <p class="desc">Your spending trends will show here.</p>
-
-        <div class="ai-block" id="aiBlock">
-          <p class="muted">Waiting for stats...</p>
-        </div>
-      </div>
-    `;
-  }
-
-  bindEvents() {}
-
-  update() {
-    const block = this.querySelector("#aiBlock");
-    if (!this.stats) return;
-
-    const { monthlyTotal, average, topCategory } = this.stats;
-
-    block.innerHTML = `
-      <div class="ai-card">
-        <div class="label">This Month</div>
-        <div class="value">-$${monthlyTotal}</div>
-      </div>
-
-      <div class="ai-card">
-        <div class="label">Daily Avg</div>
-        <div class="value">-$${average}</div>
-      </div>
-
-      <div class="ai-card">
-        <div class="label">Top Category</div>
-        <div class="value">${topCategory || "–"}</div>
+      <div class="ai-scroll-test">
+        ${this.images
+          .map(
+            (src) => `
+          <div class="ai-test-section" style="background-image: url('${src}')">
+            <div class="ai-test-overlay">
+              <h1>Glass Blur Test</h1>
+              <p>Scrolling to test blur transparency...</p>
+            </div>
+          </div>
+        `
+          )
+          .join("")}
       </div>
     `;
   }
