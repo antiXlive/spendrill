@@ -42,10 +42,25 @@ select {
   outline: none;
 }
 
-/* Focus visible for accessibility */
+/* ✅ REMOVE ALL OUTLINES GLOBALLY */
+*:focus,
+*:active,
 *:focus-visible {
-  outline: 2px solid var(--accent-blue, #2563eb);
-  outline-offset: 2px;
+  outline: none !important;
+}
+
+/* Remove outline from all interactive elements */
+input:focus,
+textarea:focus,
+select:focus,
+button:focus,
+a:focus,
+div:focus,
+span:focus,
+[role="button"]:focus,
+[tabindex]:focus {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* Allow text selection in inputs (override theme.css) */

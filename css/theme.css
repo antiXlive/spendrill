@@ -56,9 +56,26 @@
   user-select: none;
 }
 
-/* ✅ REMOVE FOCUS OUTLINE ON CLICK (but keep for keyboard) */
-*:focus:not(:focus-visible) {
-  outline: none;
+/* ✅ REMOVE ALL FOCUS OUTLINES GLOBALLY */
+*:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+*:focus-visible {
+  outline: none !important;
+}
+
+/* Remove outline from all input types */
+input:focus,
+textarea:focus,
+select:focus,
+button:focus,
+a:focus,
+[tabindex]:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: inherit;
 }
 
 /* ✅ REMOVE BLUE SELECTION BACKGROUND */
