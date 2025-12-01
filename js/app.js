@@ -79,7 +79,8 @@ window.addEventListener("DOMContentLoaded", () => navigate("home"));
 
     const snapshot = await StateModule.loadSnapshot();
     window.__STATE__ = snapshot;
-    EventBus.emit("state-changed", structuredClone(snapshot));
+    // ✅ No need to clone - EventBus does it
+    EventBus.emit("state-changed", snapshot);
 
     // Apply theme
     const themeName = snapshot.settings?.theme || "midnight";
@@ -117,7 +118,7 @@ window.addEventListener("DOMContentLoaded", () => navigate("home"));
       });
     }
   } catch (err) {
-    console.error("App init error:", err);
+    console.error("❌ App init error:", err);
     EventBus.emit("toast", { message: "Initialization failed", type: "error" });
   }
 })();
@@ -127,8 +128,13 @@ window.addEventListener("DOMContentLoaded", () => navigate("home"));
 // ---------------------------------
 async function computeStats() {
   try {
-    const s = await StateModule.loadSnapshot();
-    EventBus.emit("compute-stats", { transactions: s.transactions || [] });
+    // Use cached state instead of reloading
+    if (window.__STATE__) {
+      EventBus.emit("compute-stats", { transactions: window.__STATE__.transactions || [] });
+    } else {
+      const s = await StateModule.loadSnapshot();
+      EventBus.emit("compute-stats", { transactions: s.transactions || [] });
+    }
   } catch (e) {
     console.warn("computeStats error:", e);
   }
@@ -161,6 +167,20 @@ async function autoBackup() {
 }
 
 // ---------------------------------
+// Helper: Refresh state and notify
+// ---------------------------------
+async function refreshState() {
+  window.__STATE__ = await StateModule.loadSnapshot();
+  EventBus.emit("state-changed", window.__STATE__);
+}
+
+// ✅ NEW: Fast refresh for transactions only
+async function refreshTransactionsOnly() {
+  window.__STATE__ = await StateModule.refreshTransactions();
+  EventBus.emit("state-changed", window.__STATE__);
+}
+
+// ---------------------------------
 // EVENT HANDLERS
 // ---------------------------------
 function setupEventHandlers() {
@@ -168,24 +188,32 @@ function setupEventHandlers() {
 
   // Theme Change
   EventBus.on("theme-change", async ({ theme }) => {
-    if (!THEMES.includes(theme)) {
-      EventBus.emit("toast", { message: "Unknown theme", type: "error" });
-      return;
-    }
-    document.documentElement.setAttribute("data-theme", theme);
-    await DB.saveSetting("theme", theme);
+    try {
+      if (!THEMES.includes(theme)) {
+        EventBus.emit("toast", { message: "Unknown theme", type: "error" });
+        return;
+      }
+      document.documentElement.setAttribute("data-theme", theme);
+      await DB.saveSetting("theme", theme);
 
-    window.__STATE__ = await StateModule.loadSnapshot();
-    EventBus.emit("state-changed", structuredClone(window.__STATE__));
-    EventBus.emit("toast", { message: "Theme updated", type: "success" });
+      await refreshState();
+      EventBus.emit("toast", { message: "Theme updated", type: "success" });
+    } catch (e) {
+      console.error("❌ Theme change failed:", e);
+      EventBus.emit("toast", { message: "Theme change failed", type: "error" });
+    }
   });
 
   // Refresh
   EventBus.on("request-refresh", async () => {
-    window.__STATE__ = await StateModule.loadSnapshot();
-    EventBus.emit("state-changed", structuredClone(window.__STATE__));
-    await computeStats();
-    EventBus.emit("toast", { message: "Refreshed", type: "success" });
+    try {
+      await refreshState();
+      await computeStats();
+      EventBus.emit("toast", { message: "Refreshed", type: "success" });
+    } catch (e) {
+      console.error("❌ Refresh failed:", e);
+      EventBus.emit("toast", { message: "Refresh failed", type: "error" });
+    }
   });
 
   // --------------------
@@ -196,12 +224,13 @@ function setupEventHandlers() {
       const payload = { ...tx, id: uuidv4(), createdAt: new Date().toISOString() };
       await DB.addTransaction(payload);
 
-      window.__STATE__ = await StateModule.loadSnapshot();
-      EventBus.emit("state-changed", structuredClone(window.__STATE__));
+      // ✅ Fast refresh - only transactions
+      await refreshTransactionsOnly();
       await computeStats();
 
       EventBus.emit("toast", { message: "Transaction added", type: "success" });
     } catch (e) {
+      console.error("❌ Add transaction failed:", e);
       EventBus.emit("toast", { message: "Add failed", type: "error" });
     }
   });
@@ -211,12 +240,13 @@ function setupEventHandlers() {
       if (!tx?.id) return;
       await DB.putTransaction(tx);
 
-      window.__STATE__ = await StateModule.loadSnapshot();
-      EventBus.emit("state-changed", structuredClone(window.__STATE__));
+      // ✅ Fast refresh - only transactions
+      await refreshTransactionsOnly();
       await computeStats();
 
       EventBus.emit("toast", { message: "Transaction updated", type: "success" });
     } catch (e) {
+      console.error("❌ Update transaction failed:", e);
       EventBus.emit("toast", { message: "Update failed", type: "error" });
     }
   });
@@ -225,12 +255,13 @@ function setupEventHandlers() {
     try {
       await DB.deleteTransaction(id);
 
-      window.__STATE__ = await StateModule.loadSnapshot();
-      EventBus.emit("state-changed", structuredClone(window.__STATE__));
+      // ✅ Fast refresh - only transactions
+      await refreshTransactionsOnly();
       await computeStats();
 
       EventBus.emit("toast", { message: "Transaction deleted", type: "success" });
     } catch (e) {
+      console.error("❌ Delete transaction failed:", e);
       EventBus.emit("toast", { message: "Delete failed", type: "error" });
     }
   });
@@ -241,21 +272,26 @@ function setupEventHandlers() {
   EventBus.on("category-add", async ({ cat }) => {
     try {
       await DB.addCategoryWithSubs(cat);
-      window.__STATE__ = await StateModule.loadSnapshot();
-      EventBus.emit("state-changed", structuredClone(window.__STATE__));
+      
+      // ✅ Full refresh - categories changed
+      await refreshState();
       EventBus.emit("toast", { message: "Category added", type: "success" });
     } catch (e) {
+      console.error("❌ Add category failed:", e);
       EventBus.emit("toast", { message: "Category add failed", type: "error" });
     }
   });
 
   EventBus.on("category-delete", async ({ id }) => {
     try {
-      await DB.db.categories.delete(id);
-      window.__STATE__ = await StateModule.loadSnapshot();
-      EventBus.emit("state-changed", structuredClone(window.__STATE__));
+      // ✅ Use DB helper instead of direct access
+      await DB.deleteCategory(id);
+      
+      // ✅ Full refresh - categories changed
+      await refreshState();
       EventBus.emit("toast", { message: "Category deleted", type: "success" });
     } catch (e) {
+      console.error("❌ Delete category failed:", e);
       EventBus.emit("toast", { message: "Category delete failed", type: "error" });
     }
   });
@@ -279,6 +315,7 @@ function setupEventHandlers() {
 
       EventBus.emit("toast", { message: "Export started", type: "success" });
     } catch (e) {
+      console.error("❌ Export failed:", e);
       EventBus.emit("toast", { message: "Export failed", type: "error" });
     }
   });
@@ -292,18 +329,25 @@ function setupEventHandlers() {
       const file = await fileHandle.getFile();
       const parsed = JSON.parse(await file.text());
 
+      // Clear existing data
       await DB.db.transactions.clear();
       await DB.db.categories.clear();
 
-      // Restore data
-      for (const t of parsed.transactions || []) await DB.addTransaction(t);
-      for (const c of parsed.categories || []) await DB.addCategoryWithSubs(c);
+      // ✅ Use bulk operations for better performance
+      if (parsed.transactions?.length) {
+        await DB.addTransactionsBulk(parsed.transactions);
+      }
+      if (parsed.categories?.length) {
+        await DB.addCategoriesBulk(parsed.categories);
+      }
 
-      window.__STATE__ = await StateModule.loadSnapshot();
-      EventBus.emit("state-changed", structuredClone(window.__STATE__));
+      // Full refresh after import
+      await refreshState();
+      await computeStats();
 
       EventBus.emit("toast", { message: "Import completed", type: "success" });
     } catch (e) {
+      console.error("❌ Import failed:", e);
       EventBus.emit("toast", { message: "Import failed", type: "error" });
     }
   });
@@ -317,12 +361,12 @@ function setupEventHandlers() {
       await DB.saveSetting("backupDir", handle);
       await DB.saveSetting("backupDirName", handle.name);
 
-      window.__STATE__ = await StateModule.loadSnapshot();
-      EventBus.emit("state-changed", structuredClone(window.__STATE__));
+      await refreshState();
 
       EventBus.emit("toast", { message: "Backup folder selected", type: "success" });
       await autoBackup();
     } catch (e) {
+      console.error("❌ Backup folder selection failed:", e);
       EventBus.emit("toast", { message: "Folder selection cancelled", type: "error" });
     }
   });

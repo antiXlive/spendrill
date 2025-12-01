@@ -1,5 +1,5 @@
 // /js/db.js
-// Dexie + DB layer
+// Dexie + DB layer with error handling and query helpers
 
 import Dexie from "https://cdn.jsdelivr.net/npm/dexie@3.2.5/dist/dexie.mjs";
 import { slugify, uuidv4 } from "./utils.js";
@@ -14,69 +14,209 @@ db.version(1).stores({
 });
 
 export async function initDB() {
-    await db.open();
+    try {
+        await db.open();
+        console.log("✅ Database initialized");
+    } catch (error) {
+        console.error("❌ Failed to initialize database:", error);
+        throw error;
+    }
 }
 
 export async function wipeAll() {
-    await db.transactions.clear();
-    await db.categories.clear();
-    await db.settings.clear();
+    try {
+        await db.transactions.clear();
+        await db.categories.clear();
+        await db.settings.clear();
+        console.log("✅ Database wiped");
+    } catch (error) {
+        console.error("❌ Failed to wipe database:", error);
+        throw error;
+    }
 }
 
 // ---------------------------
 // SETTINGS
 // ---------------------------
 export async function saveSetting(key, value) {
-    return db.settings.put({ key, value });
+    try {
+        return await db.settings.put({ key, value });
+    } catch (error) {
+        console.error(`❌ Failed to save setting "${key}":`, error);
+        throw error;
+    }
 }
 
 export async function getSetting(key) {
-    return db.settings.get(key);
+    try {
+        return await db.settings.get(key);
+    } catch (error) {
+        console.error(`❌ Failed to get setting "${key}":`, error);
+        return null; // Return null instead of throwing
+    }
 }
 
 // ---------------------------
 // CATEGORIES
 // ---------------------------
 export async function addCategoryWithSubs(cat) {
-    const catId = slugify(cat.name);
+    try {
+        const catId = slugify(cat.name);
 
-    const catRecord = {
-        id: catId,
-        name: cat.name,
-        emoji: cat.emoji || "",
-        subcategories: (cat.subcategories || []).map(sub => ({
-            id: slugify(sub.name),
-            name: sub.name
-        }))
-    };
+        const catRecord = {
+            id: catId,
+            name: cat.name,
+            emoji: cat.emoji || "",
+            subcategories: (cat.subcategories || []).map(sub => ({
+                id: slugify(sub.name),
+                name: sub.name
+            }))
+        };
 
-    await db.categories.put(catRecord);
+        return await db.categories.put(catRecord);
+    } catch (error) {
+        console.error(`❌ Failed to add category "${cat.name}":`, error);
+        throw error;
+    }
 }
 
 export async function getAllCategories() {
-    return db.categories.toArray();
+    try {
+        return await db.categories.toArray();
+    } catch (error) {
+        console.error("❌ Failed to get categories:", error);
+        return []; // Return empty array instead of throwing
+    }
+}
+
+export async function deleteCategory(id) {
+    try {
+        return await db.categories.delete(id);
+    } catch (error) {
+        console.error(`❌ Failed to delete category "${id}":`, error);
+        throw error;
+    }
 }
 
 // ---------------------------
 // TRANSACTIONS
 // ---------------------------
 export async function addTransaction(tx) {
-    // Just store raw data - enrichment happens in StateModule.loadSnapshot()
-    return db.transactions.add(tx);
+    try {
+        // Use put() instead of add() to allow upserts
+        return await db.transactions.put(tx);
+    } catch (error) {
+        console.error("❌ Failed to add transaction:", error);
+        throw error;
+    }
 }
 
 export async function putTransaction(tx) {
-    return db.transactions.put(tx);
+    try {
+        return await db.transactions.put(tx);
+    } catch (error) {
+        console.error("❌ Failed to update transaction:", error);
+        throw error;
+    }
 }
 
 export async function deleteTransaction(id) {
-    return db.transactions.delete(id);
+    try {
+        return await db.transactions.delete(id);
+    } catch (error) {
+        console.error(`❌ Failed to delete transaction "${id}":`, error);
+        throw error;
+    }
 }
 
 export async function getTransactionById(id) {
-    return db.transactions.get(id);
+    try {
+        return await db.transactions.get(id);
+    } catch (error) {
+        console.error(`❌ Failed to get transaction "${id}":`, error);
+        return null;
+    }
 }
 
 export async function getAllTransactions() {
-    return db.transactions.toArray();
+    try {
+        return await db.transactions.toArray();
+    } catch (error) {
+        console.error("❌ Failed to get transactions:", error);
+        return [];
+    }
+}
+
+// ---------------------------
+// BULK OPERATIONS
+// ---------------------------
+export async function addTransactionsBulk(transactions) {
+    try {
+        return await db.transactions.bulkPut(transactions);
+    } catch (error) {
+        console.error("❌ Failed to add transactions in bulk:", error);
+        throw error;
+    }
+}
+
+export async function addCategoriesBulk(categories) {
+    try {
+        return await db.categories.bulkPut(categories);
+    } catch (error) {
+        console.error("❌ Failed to add categories in bulk:", error);
+        throw error;
+    }
+}
+
+// ---------------------------
+// QUERY HELPERS
+// ---------------------------
+export async function getTransactionsByDateRange(startDate, endDate) {
+    try {
+        return await db.transactions
+            .where('date')
+            .between(startDate, endDate, true, true)
+            .toArray();
+    } catch (error) {
+        console.error("❌ Failed to get transactions by date range:", error);
+        return [];
+    }
+}
+
+export async function getTransactionsByCategory(catId) {
+    try {
+        return await db.transactions
+            .where('catId')
+            .equals(catId)
+            .toArray();
+    } catch (error) {
+        console.error("❌ Failed to get transactions by category:", error);
+        return [];
+    }
+}
+
+export async function getTransactionsForMonth(year, month) {
+    try {
+        const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+        return await db.transactions
+            .where('date')
+            .startsWith(monthStr)
+            .toArray();
+    } catch (error) {
+        console.error("❌ Failed to get transactions for month:", error);
+        return [];
+    }
+}
+
+export async function getRecentTransactions(limit = 10) {
+    try {
+        return await db.transactions
+            .orderBy('createdAt')
+            .reverse()
+            .limit(limit)
+            .toArray();
+    } catch (error) {
+        console.error("❌ Failed to get recent transactions:", error);
+        return [];
+    }
 }

@@ -338,8 +338,8 @@ class EntrySheet extends HTMLElement {
     // ensure category list is rendered with latest categories
     this._renderCategories();
 
-    // focus amount after small delay
-    setTimeout(()=>{ try{ this.$amount.focus(); this.$amount.select(); }catch(_){} }, 160);
+    // focus amount after small delay (no select for better UX)
+    setTimeout(()=>{ try{ this.$amount.focus(); }catch(_){} }, 160);
   }
 
   close() {

@@ -179,8 +179,8 @@ class HomeScreen extends HTMLElement {
     if (this._isAnimating) return;
 
     const dx = this._touch.x - this._touch.start;
-    if (dx < -60) this._changeMonth(-1);
-    else if (dx > 60) this._changeMonth(1);
+    if (dx < -60) this._changeMonth(1);
+    else if (dx > 60) this._changeMonth(-1);
   }
 
   _changeMonth(dir) {
