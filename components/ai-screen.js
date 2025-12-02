@@ -21,7 +21,6 @@ class AIScreen extends HTMLElement {
       "/spendrill/img/ai13.jpg",
       "/spendrill/img/ai14.jpg",
       "/spendrill/img/ai15.jpg",
-
     ];
   }
 
@@ -34,11 +33,10 @@ class AIScreen extends HTMLElement {
       <div class="ai-scroll-test">
         ${this.images
           .map(
-            (src) => `
+            (src, index) => `
           <div class="ai-test-section" style="background-image: url('${src}')">
             <div class="ai-test-overlay">
-              <h1>Glass Blur Test</h1>
-              <p>Scrolling to test blur transparency...</p>
+              <p>Glass Blur Test ${src}</p>
             </div>
           </div>
         `

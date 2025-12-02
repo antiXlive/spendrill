@@ -1,9 +1,17 @@
-/* Container that holds all sections */
+/* =========================================================
+   AI SCREEN STYLES
+   ========================================================= */
+
+/* Make sure ai-screen element itself doesn't interfere */
+ai-screen {
+  display: block;
+  width: 100%;
+}
+
+/* Container that holds all sections - NO SCROLL HERE */
 .ai-scroll-test {
   width: 100%;
-  height: 100%;
-  overflow-y: auto;
-  scroll-behavior: smooth;
+  /* Don't set height or overflow - let parent handle it */
 }
 
 /* One full-screen section */
@@ -12,7 +20,10 @@
   width: 100%;
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
   position: relative;
+  /* Fallback background if image doesn't load */
+  background-color: rgba(255, 255, 255, 0.03);
 }
 
 /* Glass blur overlay */
@@ -43,6 +54,7 @@
   font-size: 14px;
   color: var(--text-secondary);
 }
+
 [data-screen="ai"] {
   background: transparent !important;
 }

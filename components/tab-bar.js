@@ -1,3 +1,4 @@
+// components/tab-bar.js
 import EventBus from "../js/event-bus.js";
 
 class TabBar extends HTMLElement {

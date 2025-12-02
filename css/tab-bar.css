@@ -1,3 +1,7 @@
+/* =========================================================
+   TAB BAR STYLES
+   ========================================================= */
+
 /* FORCE tab bar to be floating and centered */
 tab-bar {
   position: fixed !important;
@@ -9,6 +13,7 @@ tab-bar {
   width: 100%;
   z-index: 9999;
   pointer-events: none;
+  background: transparent !important;
 }
 
 /* The pill itself */
@@ -18,15 +23,18 @@ tab-bar {
   height: 66px;
   border-radius: 26px;
 
-  background: linear-gradient(180deg, #121418f5, #0e1014f2, #0a0c10ef);
+  background: rgba(18, 20, 24, 0.25);
   backdrop-filter: blur(22px) saturate(140%);
-  border: 1px solid rgba(255,255,255,0.04);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  border: 1px solid rgba(255,255,255,0.08);
 
   pointer-events: auto;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 /* 5-section grid */
