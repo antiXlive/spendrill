@@ -285,3 +285,99 @@ tab-bar {
   --border-subtle: rgba(255,255,255,0.07);
   --shadow-strong: rgba(0,0,0,0.42);
 }
+:root[data-theme="cosmic"] {
+  --bg-main: #070414;
+  --bg-surface: #100A22;
+  --text-primary: #ECE9FF;
+  --text-secondary: #A29AD9;
+  --text-tertiary: #7D75B7;
+
+  --accent: #6D5DFB;
+  --accent-glow: rgba(109,93,251,0.38);
+
+  --expense: #FF5E79;
+  --icon-bg: rgba(255,255,255,0.07);
+  --card-bg: rgba(255,255,255,0.03);
+  --border-subtle: rgba(255,255,255,0.06);
+  --shadow-strong: rgba(0,0,0,0.45);
+}
+:root[data-theme="neon"] {
+  --bg-main: #04000A;
+  --bg-surface: #0A0120;
+  --text-primary: #F7EFFF;
+  --text-secondary: #E093FF;
+  --text-tertiary: #B06FE0;
+
+  --accent: #D946EF;
+  --accent-glow: rgba(217,70,239,0.38);
+
+  --expense: #FF5E79;
+  --icon-bg: rgba(255,255,255,0.09);
+  --card-bg: rgba(255,255,255,0.05);
+  --border-subtle: rgba(255,255,255,0.08);
+  --shadow-strong: rgba(0,0,0,0.45);
+}
+:root[data-theme="tealglass"] {
+  --bg-main: #031716;
+  --bg-surface: #072322;
+  --text-primary: #E0FFFA;
+  --text-secondary: #89D8CF;
+  --text-tertiary: #62ADA5;
+
+  --accent: #14B8A6;
+  --accent-glow: rgba(20,184,166,0.40);
+
+  --expense: #FF5E79;
+  --icon-bg: rgba(255,255,255,0.08);
+  --card-bg: rgba(255,255,255,0.04);
+  --border-subtle: rgba(255,255,255,0.07);
+  --shadow-strong: rgba(0,0,0,0.42);
+}
+:root[data-theme="onyx"] {
+  --bg-main: #090909;
+  --bg-surface: #111111;
+  --text-primary: #F4F4F4;
+  --text-secondary: #C3C3C3;
+  --text-tertiary: #9A9A9A;
+
+  --accent: #FBBF24;
+  --accent-glow: rgba(251,191,36,0.38);
+
+  --expense: #FF5E79;
+  --icon-bg: rgba(255,255,255,0.06);
+  --card-bg: rgba(255,255,255,0.03);
+  --border-subtle: rgba(255,255,255,0.05);
+  --shadow-strong: rgba(0,0,0,0.45);
+}
+:root[data-theme="crimsonnight"] {
+  --bg-main: #140306;
+  --bg-surface: #1F070C;
+  --text-primary: #FFE6EA;
+  --text-secondary: #FF9AAE;
+  --text-tertiary: #D67182;
+
+  --accent: #F43F5E;
+  --accent-glow: rgba(244,63,94,0.42);
+
+  --expense: #FF5E79;
+  --icon-bg: rgba(255,255,255,0.08);
+  --card-bg: rgba(255,255,255,0.04);
+  --border-subtle: rgba(255,255,255,0.07);
+  --shadow-strong: rgba(0,0,0,0.44);
+}
+:root[data-theme="storm"] {
+  --bg-main: #020A14;
+  --bg-surface: #071423;
+  --text-primary: #E8F5FF;
+  --text-secondary: #9ACAEF;
+  --text-tertiary: #6F9CC3;
+
+  --accent: #38BDF8;
+  --accent-glow: rgba(56,189,248,0.38);
+
+  --expense: #FF5E79;
+  --icon-bg: rgba(255,255,255,0.07);
+  --card-bg: rgba(255,255,255,0.03);
+  --border-subtle: rgba(255,255,255,0.06);
+  --shadow-strong: rgba(0,0,0,0.45);
+}

@@ -1,8 +1,6 @@
 // components/settings-screen.js
-// Updated Settings screen using the new production-ready db.js functions
-// - Works with optimized database layer
-// - Uses proper error handling and validation
-// - Emits EventBus events: categories-updated, data-imported
+// Settings screen with horizontal theme gallery (scrollable cards)
+// Works with global theme system: midnight, aqua, purple, forest, ember, sunset
 
 import { EventBus } from "../js/event-bus.js";
 import {
@@ -17,14 +15,27 @@ import {
   getDBStatus,
   DBStatus
 } from "../js/db.js";
+import StateModule from "../js/state.js";
 import { DEFAULT_CATEGORIES } from "../js/default-categories.js";
 
+const THEMES = [
+  { id: "midnight", name: "Midnight" },
+  { id: "aqua", name: "Aqua" },
+  { id: "purple", name: "Purple" },
+  { id: "forest", name: "Forest" },
+  { id: "ember", name: "Ember" },
+  { id: "sunset", name: "Sunset" },
+  { id: "cosmic", name: "cosmic" },
+  { id: "neon", name: "neon" },
+  { id: "tealglass", name: "tealglass" },
+  { id: "onyx", name: "onyx" },
+  { id: "crimsonnight", name: "Crimsonnight" },
+  { id: "storm", name: "Storm" },
+
+];
+
 function uuid() {
-  try {
-    return crypto.randomUUID();
-  } catch (e) {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2);
-  }
+  try { return crypto.randomUUID(); } catch { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 }
 
 class SettingsScreen extends HTMLElement {
@@ -35,95 +46,103 @@ class SettingsScreen extends HTMLElement {
   }
 
   connectedCallback() {
+    // content wrapper matches home-content pattern (parent [data-screen] supplies padding)
     this.innerHTML = `
-      <div class="wrap settings-wrap" data-screen="settings">
+      <div class="settings-content">
+
+        <div class="settings-header">
+          <h1 class="title">Settings</h1>
+          <div class="meta">Manage categories, themes, backup & security</div>
+        </div>
+
         <div class="settings-container">
 
-          <header class="settings-header">
-            <h1 class="title">Settings</h1>
-            <div class="meta">Manage themes, backup & categories</div>
-          </header>
-
+          <!-- Security -->
           <section class="card">
+            <div class="card-title">Security</div>
+            <div class="card-sub">Lock the app with PIN or biometric unlock</div>
+
             <div class="card-row">
-              <div>
-                <div class="card-title">Security</div>
-                <div class="card-sub">Lock the app with PIN or biometric.</div>
+              <div class="row-info">
+                <div class="row-title">Change PIN</div>
+                <div class="row-sub">Update your app unlock PIN</div>
               </div>
-              <div class="card-actions">
-                <button id="btn-change-pin" class="btn btn-ghost">Change PIN</button>
+              <div class="row-actions">
+                <button id="btn-change-pin" class="btn btn-ghost">Change</button>
               </div>
             </div>
 
             <div class="card-row">
-              <div>
-                <div class="card-title">Biometric</div>
-                <div class="card-sub">Enable biometric unlock (if available).</div>
+              <div class="row-info">
+                <div class="row-title">Biometric Unlock</div>
+                <div class="row-sub">Use fingerprint / face unlock if available</div>
               </div>
-              <div class="card-actions">
+              <div class="row-actions">
                 <button id="btn-toggle-bio" class="btn btn-ghost">Toggle</button>
               </div>
             </div>
           </section>
 
+          <!-- Themes -->
+          <section class="card">
+            <div class="card-title">Themes</div>
+            <div class="card-sub">Choose a color theme — applied instantly</div>
+
+            <div class="theme-gallery" id="themeGallery"></div>
+          </section>
+
+          <!-- Data & Backup -->
           <section class="card">
             <div class="card-title">Data & Backup</div>
-            <div class="card-sub">Export/import or choose backup folder.</div>
+            <div class="card-sub">Export / import or reset app data</div>
 
-            <div class="card-row small-gap">
-              <div>
-                <div class="mini-title">Export</div>
-                <div class="mini-sub">Download JSON backup of data.</div>
+            <div class="card-row">
+              <div class="row-info">
+                <div class="row-title">Export Data</div>
+                <div class="row-sub">Download JSON backup</div>
               </div>
-              <div class="card-actions">
+              <div class="row-actions">
                 <button id="btn-export" class="btn btn-acc">Export</button>
               </div>
             </div>
 
-            <div class="card-row small-gap">
-              <div>
-                <div class="mini-title">Import</div>
-                <div class="mini-sub">Restore from a JSON file.</div>
+            <div class="card-row">
+              <div class="row-info">
+                <div class="row-title">Import Data</div>
+                <div class="row-sub">Restore from JSON file</div>
+              </div>
+              <div class="row-actions import-wrap">
                 <input id="file-import" type="file" accept="application/json" />
               </div>
             </div>
 
-            <div class="card-row small-gap">
-              <div>
-                <div class="mini-title">Backup folder</div>
-                <div class="mini-sub" id="backup-file-label">No folder selected</div>
+            <div class="card-row border-top">
+              <div class="row-info">
+                <div class="row-title">Reset All</div>
+                <div class="row-sub">Delete all transactions, categories & settings</div>
               </div>
-              <div class="card-actions">
-                <button id="btn-choose-backup" class="btn btn-ghost">Choose</button>
-                <button id="btn-backup-now" class="btn btn-acc">Backup</button>
-              </div>
-            </div>
-
-            <div class="card-row small-gap">
-              <div>
-                <div class="mini-title">Reset</div>
-                <div class="mini-sub">Delete all app data (categories, transactions, settings).</div>
-              </div>
-              <div class="card-actions">
-                <button id="btn-reset-all" class="btn btn-danger">Reset All</button>
+              <div class="row-actions">
+                <button id="btn-reset-all" class="btn btn-danger">Reset</button>
               </div>
             </div>
           </section>
 
+          <!-- Categories -->
           <section class="card">
             <div class="card-title">Categories</div>
-            <div class="card-sub">Manage emojis, names and subcategories</div>
+            <div class="card-sub">Edit emojis, names, and subcategories</div>
 
             <div id="cat-mgr" class="cat-mgr-list"></div>
 
             <div style="margin-top:12px;">
-              <button id="btn-add-cat" class="btn btn-ghost">＋ Add category</button>
+              <button id="btn-add-cat" class="btn btn-ghost wide-btn">＋ Add Category</button>
             </div>
           </section>
 
-          <section class="card">
+          <!-- About -->
+          <section class="card about-card">
             <div class="card-title">About</div>
-            <div class="card-sub">Expense Manager PWA · dev build</div>
+            <div class="card-sub">Spendrill — Offline Expense Manager • dev build</div>
           </section>
 
         </div>
@@ -132,197 +151,125 @@ class SettingsScreen extends HTMLElement {
       <div id="settings-toast" class="settings-toast" aria-live="polite" role="status"></div>
     `;
 
-    // Bind DOM events
     this._bind();
-
-    // Initialize database and load categories
     this._initialize();
 
-    // Listen for external category changes
-    EventBus.on("categories-updated", (cats) => {
-      if (Array.isArray(cats)) {
-        this._categories = cats;
-        this._renderCategories();
-      } else {
-        this._loadCategories();
-      }
-    });
+    // listen for external category updates
+    this._catUpdatedHandler = () => this._loadCategories();
+    EventBus.on("categories-updated", this._catUpdatedHandler);
   }
 
   disconnectedCallback() {
-    try {
-      EventBus.off("categories-updated");
-    } catch (_) {}
+    try { EventBus.off("categories-updated", this._catUpdatedHandler); } catch {}
     if (this._toastTimer) clearTimeout(this._toastTimer);
   }
 
-  /* ---------------- Initialization ---------------- */
+  /* -------------------- Initialization -------------------- */
   async _initialize() {
     try {
-      // Ensure database is initialized
-      const status = getDBStatus();
-      if (status !== DBStatus.READY) {
-        await initDB();
-      }
-
-      // Seed default categories if needed
+      if (getDBStatus() !== DBStatus.READY) await initDB();
       await this._ensureCategoriesSeeded();
-
-      // Load categories from database
       await this._loadCategories();
-    } catch (error) {
-      console.error("Failed to initialize settings:", error);
-      this._showToast("Failed to load settings");
+      this._renderThemeGallery();
+    } catch (err) {
+      console.error("Settings init failed:", err);
+      this._showToast("Initialization error");
     }
   }
 
   async _ensureCategoriesSeeded() {
     try {
-      const categories = await getAllCategories();
-      
-      if (categories.length === 0) {
-        console.log("Seeding default categories...");
-        
-        // Add default categories using the new addCategory function
+      const cats = await getAllCategories();
+      if (!cats || cats.length === 0) {
         for (const cat of DEFAULT_CATEGORIES) {
+          const subcats = (cat.subcategories || []).map(s => ({
+            name: s.name || (typeof s === "string" ? s : "")
+          }));
           await addCategory({
+            id: cat.id || uuid(),
             name: cat.name,
             emoji: cat.emoji || "🏷️",
             image: cat.image || "",
-            subcategories: (cat.subcategories || []).map(s => 
-              typeof s === "string" ? { name: s } : { name: s.name || "" }
-            )
+            subcategories: subcats
           });
         }
-        
-        console.log("✅ Default categories seeded");
       }
-    } catch (error) {
-      console.error("❌ Failed to seed categories:", error);
-      this._showToast("Failed to seed default categories");
+    } catch (err) {
+      console.error("Seeding categories failed:", err);
     }
   }
 
   async _loadCategories() {
     try {
-      const categories = await getAllCategories();
-      
-      // Normalize to expected shape
-      this._categories = categories.map(c => ({
+      const cats = await getAllCategories();
+      this._categories = (cats || []).map(c => ({
         id: c.id,
         name: c.name,
         emoji: c.emoji || "🏷️",
-        image: c.image || "",
-        subcategories: (c.subcategories || []).map(s => ({
-          id: s.id,
-          name: s.name
-        }))
+        subcategories: (c.subcategories || []).map(s => ({ id: s.id, name: s.name }))
       }));
-
       this._renderCategories();
-      EventBus.emit("categories-updated", this._categories);
-    } catch (error) {
-      console.error("❌ Failed to load categories:", error);
-      this._showToast("Failed to load categories");
-      this._categories = [];
-      this._renderCategories();
+    } catch (err) {
+      console.error("Load categories failed:", err);
     }
   }
 
-  /* ---------------- UI Binding ---------------- */
+  /* -------------------- UI BIND -------------------- */
   _bind() {
-    const $ = (sel) => this.querySelector(sel);
+    const $ = sel => this.querySelector(sel);
 
-    // Export data
+    // Theme gallery (click handlers attached dynamically)
+    // Export
     $("#btn-export")?.addEventListener("click", async () => {
       try {
-        const exportedData = await exportData();
-        
-        const blob = new Blob([JSON.stringify(exportedData, null, 2)], {
-          type: "application/json"
-        });
+        const data = await exportData();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `spendrill-export-${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `spendrill-export-${new Date().toISOString().slice(0,10)}.json`;
         document.body.appendChild(a);
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-        
-        this._showToast("Export successful");
-      } catch (error) {
-        console.error("Export failed:", error);
+        this._showToast("Export saved");
+      } catch (err) {
+        console.error("Export failed:", err);
         this._showToast("Export failed");
       }
     });
 
-    // Import data
+    // Import
     const fileImport = $("#file-import");
     fileImport?.addEventListener("change", async (evt) => {
-      const file = evt.target.files?.[0];
-      if (!file) return;
-
+      const f = evt.target.files?.[0];
+      if (!f) return;
       try {
-        const text = await file.text();
-        const data = JSON.parse(text);
-
-        // Use the new importData function with clearExisting option
-        const confirmClear = confirm(
-          "Do you want to replace all existing data?\n\n" +
-          "Yes = Replace everything\n" +
-          "No = Merge with existing data"
-        );
-
-        await importData(data, { clearExisting: confirmClear });
-
-        // Reload categories
+        const txt = await f.text();
+        const data = JSON.parse(txt);
+        const confirmClear = confirm("Replace all existing data? OK = Replace, Cancel = Merge");
+        await importData(data, confirmClear);
         await this._loadCategories();
-        
         EventBus.emit("data-imported", data);
         this._showToast("Import successful");
-      } catch (error) {
-        console.error("Import failed:", error);
-        this._showToast(`Import failed: ${error.message}`);
+      } catch (err) {
+        console.error("Import failed:", err);
+        this._showToast("Import failed");
       } finally {
         fileImport.value = "";
       }
     });
 
-    // Choose backup folder
-    $("#btn-choose-backup")?.addEventListener("click", () => {
-      EventBus.emit("choose-backup-folder");
-    });
-
-    // Backup now
-    $("#btn-backup-now")?.addEventListener("click", () => {
-      EventBus.emit("request-backup-now");
-      this._showToast("Backup requested");
-    });
-
-    // Reset all data
+    // Reset
     $("#btn-reset-all")?.addEventListener("click", async () => {
-      if (!confirm(
-        "⚠️ WARNING: This will delete ALL data!\n\n" +
-        "• All transactions\n" +
-        "• All categories\n" +
-        "• All settings\n\n" +
-        "This action cannot be undone. Continue?"
-      )) {
-        return;
-      }
-
+      if (!confirm("⚠️ Delete all data (transactions, categories, settings)?")) return;
       try {
         await wipeAll();
-        
-        // Reload empty state
         this._categories = [];
         this._renderCategories();
-        EventBus.emit("categories-updated", this._categories);
-        
-        this._showToast("All data cleared");
-      } catch (error) {
-        console.error("Reset failed:", error);
+        this._showToast("Cleared");
+      } catch (err) {
+        console.error("Reset failed:", err);
         this._showToast("Reset failed");
       }
     });
@@ -330,95 +277,126 @@ class SettingsScreen extends HTMLElement {
     // Add category
     $("#btn-add-cat")?.addEventListener("click", () => this._onAddCategory());
 
-    // Security buttons
-    $("#btn-change-pin")?.addEventListener("click", () => 
-      EventBus.emit("request-change-pin", {})
-    );
-    $("#btn-toggle-bio")?.addEventListener("click", () => 
-      EventBus.emit("toggle-biometric", {})
-    );
+    // Security
+    $("#btn-change-pin")?.addEventListener("click", () => EventBus.emit("request-change-pin"));
+    $("#btn-toggle-bio")?.addEventListener("click", () => EventBus.emit("toggle-biometric"));
   }
 
-  /* ---------------- Category UI Rendering ---------------- */
+  /* -------------------- Theme Gallery Rendering -------------------- */
+  _renderThemeGallery() {
+    const root = this.querySelector("#themeGallery");
+    if (!root) return;
+
+    const current = document.documentElement.getAttribute("data-theme") || (StateModule?.getState?.().settings?.theme) || "midnight";
+
+    root.innerHTML = THEMES.map(t => `
+      <button class="theme-card" data-theme="${t.id}" aria-pressed="${t.id === current}">
+        <div class="theme-preview" data-theme="${t.id}"></div>
+        <div class="theme-label">${t.name}</div>
+        <div class="theme-check">${t.id === current ? "✓" : ""}</div>
+      </button>
+    `).join("");
+
+    // wire up clicks
+    root.querySelectorAll(".theme-card").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const id = btn.dataset.theme;
+        this._applyTheme(id);
+      });
+    });
+  }
+
+  async _applyTheme(id) {
+    try {
+      // apply to document
+      document.documentElement.setAttribute("data-theme", id);
+
+      // persist via StateModule (if available)
+      try {
+        if (StateModule && typeof StateModule.saveSetting === "function") {
+          await StateModule.saveSetting("theme", id);
+        }
+      } catch (err) {
+        console.warn("Failed to persist theme via StateModule:", err);
+      }
+
+      // notify app
+      EventBus.emit("theme-change", { theme: id });
+
+      // update gallery UI
+      this._renderThemeGallery();
+
+      this._showToast("Theme applied");
+    } catch (err) {
+      console.error("Apply theme failed:", err);
+      this._showToast("Theme apply failed");
+    }
+  }
+
+  /* -------------------- Categories rendering -------------------- */
   _renderCategories() {
     const cont = this.querySelector("#cat-mgr");
     if (!cont) return;
     cont.innerHTML = "";
 
-    if (!this._categories || this._categories.length === 0) {
-      cont.innerHTML = `<div class="empty">No categories yet. Add one to get started.</div>`;
+    if (!this._categories.length) {
+      cont.innerHTML = `<div class="empty">No categories yet — add one</div>`;
       return;
     }
 
     this._categories.forEach((c, idx) => {
       const row = document.createElement("div");
       row.className = "cat-row";
-      row.dataset.idx = idx;
-      
-      const subcatPreview = (c.subcategories || [])
-        .map(s => s.name)
-        .slice(0, 3)
-        .join(", ");
-      const hasMore = c.subcategories && c.subcategories.length > 3;
+
+      const subPreview = (c.subcategories || []).map(s => s.name).slice(0, 3).join(", ");
+      const more = (c.subcategories || []).length > 3 ? "…" : "";
 
       row.innerHTML = `
         <div class="cat-main">
-          <button class="emoji-btn" data-idx="${idx}">
-            ${this._escape(c.emoji || "🏷️")}
-          </button>
+          <button class="emoji-btn" data-idx="${idx}">${this._esc(c.emoji)}</button>
           <div class="cat-info">
-            <div class="cat-name">${this._escape(c.name || "Unnamed")}</div>
-            <div class="cat-subtext">
-              ${this._escape(subcatPreview)}${hasMore ? "…" : ""}
-            </div>
+            <div class="cat-name">${this._esc(c.name)}</div>
+            <div class="cat-subtext">${this._esc(subPreview)}${more}</div>
           </div>
         </div>
+
         <div class="cat-actions">
           <button class="btn btn-ghost btn-edit" data-idx="${idx}">Edit</button>
           <button class="btn btn-ghost btn-subs" data-idx="${idx}">Subs</button>
           <button class="btn btn-danger btn-delete" data-idx="${idx}">Delete</button>
         </div>
-        <div class="subpanel" id="subpanel-${this._escape(c.id)}" style="display:none;"></div>
+
+        <div class="subpanel" id="subpanel-${this._esc(c.id)}"></div>
       `;
       cont.appendChild(row);
     });
 
-    // Wire event handlers
+    // wire handlers
     cont.querySelectorAll(".emoji-btn").forEach(btn =>
-      btn.addEventListener("click", (e) => 
-        this._onChangeEmoji(e.currentTarget.dataset.idx)
-      )
+      btn.addEventListener("click", (e) => this._onChangeEmoji(e.currentTarget.dataset.idx))
     );
     cont.querySelectorAll(".btn-edit").forEach(btn =>
-      btn.addEventListener("click", (e) => 
-        this._onEditCategory(e.currentTarget.dataset.idx)
-      )
+      btn.addEventListener("click", (e) => this._onEditCategory(e.currentTarget.dataset.idx))
     );
     cont.querySelectorAll(".btn-delete").forEach(btn =>
-      btn.addEventListener("click", (e) => 
-        this._onDeleteCategory(e.currentTarget.dataset.idx)
-      )
+      btn.addEventListener("click", (e) => this._onDeleteCategory(e.currentTarget.dataset.idx))
     );
     cont.querySelectorAll(".btn-subs").forEach(btn =>
-      btn.addEventListener("click", (e) => 
-        this._toggleSubpanel(e.currentTarget.dataset.idx)
-      )
+      btn.addEventListener("click", (e) => this._toggleSubpanel(e.currentTarget.dataset.idx))
     );
   }
 
   _toggleSubpanel(idx) {
-    const i = Number(idx);
-    const cat = this._categories[i];
+    const cat = this._categories[idx];
     if (!cat) return;
-
     const panel = this.querySelector(`#subpanel-${cat.id}`);
     if (!panel) return;
-
-    if (panel.style.display === "none") {
-      this._renderSubpanel(cat, panel);
-      panel.style.display = "block";
+    if (panel.classList.contains("open")) {
+      panel.classList.remove("open");
+      panel.innerHTML = "";
     } else {
-      panel.style.display = "none";
+      this._renderSubpanel(cat, panel);
+      panel.classList.add("open");
     }
   }
 
@@ -428,20 +406,16 @@ class SettingsScreen extends HTMLElement {
     list.className = "sub-list";
 
     if (!cat.subcategories || cat.subcategories.length === 0) {
-      list.innerHTML = `<div class="empty">No subcategories. Add one below.</div>`;
+      list.innerHTML = `<div class="empty">No subcategories</div>`;
     } else {
       cat.subcategories.forEach((s, si) => {
         const item = document.createElement("div");
         item.className = "sub-row";
         item.innerHTML = `
-          <div class="sub-left">${this._escape(s.name)}</div>
+          <div class="sub-left">${this._esc(s.name)}</div>
           <div class="sub-actions">
-            <button class="btn btn-ghost edit-sub" data-c="${cat.id}" data-idx="${si}">
-              Edit
-            </button>
-            <button class="btn btn-danger del-sub" data-c="${cat.id}" data-idx="${si}">
-              Delete
-            </button>
+            <button class="btn btn-ghost edit-sub" data-c="${cat.id}" data-idx="${si}">Edit</button>
+            <button class="btn btn-danger del-sub" data-c="${cat.id}" data-idx="${si}">Del</button>
           </div>
         `;
         list.appendChild(item);
@@ -450,225 +424,140 @@ class SettingsScreen extends HTMLElement {
 
     const addWrap = document.createElement("div");
     addWrap.className = "sub-add";
-    addWrap.innerHTML = `
-      <button class="btn btn-ghost add-sub" data-c="${cat.id}">
-        ＋ Add subcategory
-      </button>
-    `;
+    addWrap.innerHTML = `<button class="btn btn-ghost add-sub" data-c="${cat.id}">＋ Add subcategory</button>`;
 
     panel.appendChild(list);
     panel.appendChild(addWrap);
 
-    // Wire subcategory handlers
     panel.querySelectorAll(".edit-sub").forEach(btn =>
-      btn.addEventListener("click", (e) => {
-        const catId = e.currentTarget.dataset.c;
-        const idx = Number(e.currentTarget.dataset.idx);
-        this._onEditSubcategory(catId, idx);
-      })
+      btn.addEventListener("click", (e) => this._onEditSubcategory(e.currentTarget.dataset.c, Number(e.currentTarget.dataset.idx)))
     );
     panel.querySelectorAll(".del-sub").forEach(btn =>
-      btn.addEventListener("click", (e) => {
-        const catId = e.currentTarget.dataset.c;
-        const idx = Number(e.currentTarget.dataset.idx);
-        this._onDeleteSubcategory(catId, idx);
-      })
+      btn.addEventListener("click", (e) => this._onDeleteSubcategory(e.currentTarget.dataset.c, Number(e.currentTarget.dataset.idx)))
     );
     panel.querySelectorAll(".add-sub").forEach(btn =>
-      btn.addEventListener("click", (e) => {
-        const catId = e.currentTarget.dataset.c;
-        this._onAddSubcategory(catId);
-      })
+      btn.addEventListener("click", (e) => this._onAddSubcategory(e.currentTarget.dataset.c))
     );
   }
 
-  /* ---------------- Category CRUD Operations ---------------- */
+  /* -------------------- Category operations -------------------- */
   async _onChangeEmoji(idx) {
-    const i = Number(idx);
-    const cat = this._categories[i];
-    if (!cat) return;
-
-    const emoji = prompt("Choose emoji (paste or type):", cat.emoji || "🏷️");
+    const c = this._categories[idx];
+    if (!c) return;
+    const emoji = prompt("Emoji (paste or type):", c.emoji || "🏷️");
     if (emoji == null) return;
-
     try {
-      await updateCategory(cat.id, { emoji: emoji.trim() });
+      await updateCategory(c.id, { emoji: emoji.trim() });
       await this._loadCategories();
       this._showToast("Emoji updated");
-    } catch (error) {
-      console.error("Failed to update emoji:", error);
-      this._showToast("Failed to update emoji");
+    } catch (err) {
+      console.error("Emoji update failed:", err);
+      this._showToast("Update failed");
     }
   }
 
   async _onEditCategory(idx) {
-    const i = Number(idx);
-    const cat = this._categories[i];
-    if (!cat) return;
-
-    const name = prompt("Category name:", cat.name || "");
-    if (name == null || !name.trim()) return;
-
+    const c = this._categories[idx];
+    if (!c) return;
+    const name = prompt("Category name:", c.name || "");
+    if (!name) return;
     try {
-      await updateCategory(cat.id, { name: name.trim() });
+      await updateCategory(c.id, { name: name.trim() });
       await this._loadCategories();
       this._showToast("Category updated");
-    } catch (error) {
-      console.error("Failed to update category:", error);
-      this._showToast("Failed to update category");
+    } catch (err) {
+      console.error("Category update failed:", err);
+      this._showToast("Update failed");
     }
   }
 
   async _onDeleteCategory(idx) {
-    const i = Number(idx);
-    const cat = this._categories[i];
-    if (!cat) return;
-
-    if (!confirm(
-      `Delete "${cat.name}"?\n\n` +
-      `This will also delete all associated transactions.`
-    )) {
-      return;
-    }
-
+    const c = this._categories[idx];
+    if (!c) return;
+    if (!confirm(`Delete "${c.name}"? This will remove related transactions.`)) return;
     try {
-      // Delete with force option (deletes related transactions)
-      await deleteCategory(cat.id, true);
+      await deleteCategory(c.id, true);
       await this._loadCategories();
       this._showToast("Category deleted");
-    } catch (error) {
-      console.error("Failed to delete category:", error);
-      this._showToast(`Delete failed: ${error.message}`);
+    } catch (err) {
+      console.error("Delete failed:", err);
+      this._showToast("Delete failed");
     }
   }
 
   async _onAddCategory() {
     const name = prompt("Category name:");
-    if (!name || !name.trim()) return;
-
+    if (!name) return;
     const emoji = prompt("Emoji for category (optional):", "🏷️") || "🏷️";
-
     try {
-      await addCategory({
-        name: name.trim(),
-        emoji: emoji.trim(),
-        subcategories: []
-      });
-      
+      await addCategory({ name: name.trim(), emoji: emoji.trim(), subcategories: [] });
       await this._loadCategories();
       this._showToast("Category added");
-    } catch (error) {
-      console.error("Failed to add category:", error);
-      this._showToast("Failed to add category");
+    } catch (err) {
+      console.error("Add category failed:", err);
+      this._showToast("Add failed");
     }
   }
 
-  /* ---------------- Subcategory Operations ---------------- */
   async _onAddSubcategory(catId) {
-    const cat = this._categories.find(c => c.id === catId);
-    if (!cat) return;
-
-    const name = prompt(`Add subcategory under "${cat.name}":`);
-    if (!name || !name.trim()) return;
-
+    const name = prompt("Subcategory name:");
+    if (!name) return;
     try {
-      const updatedSubcategories = [
-        ...(cat.subcategories || []),
-        { name: name.trim() }
-      ];
-
-      await updateCategory(cat.id, { subcategories: updatedSubcategories });
+      const cat = this._categories.find(c => c.id === catId);
+      const updated = [...(cat.subcategories || []), { name: name.trim() }];
+      await updateCategory(catId, { subcategories: updated });
       await this._loadCategories();
-
-      // Refresh subpanel if open
-      const panel = this.querySelector(`#subpanel-${cat.id}`);
-      if (panel && panel.style.display !== "none") {
-        const updatedCat = this._categories.find(c => c.id === catId);
-        if (updatedCat) this._renderSubpanel(updatedCat, panel);
-      }
-
       this._showToast("Subcategory added");
-    } catch (error) {
-      console.error("Failed to add subcategory:", error);
-      this._showToast("Failed to add subcategory");
+    } catch (err) {
+      console.error("Add sub failed:", err);
+      this._showToast("Failed");
     }
   }
 
   async _onEditSubcategory(catId, idx) {
     const cat = this._categories.find(c => c.id === catId);
-    if (!cat || !cat.subcategories || !cat.subcategories[idx]) return;
-
+    if (!cat) return;
     const sub = cat.subcategories[idx];
-    const name = prompt("Edit subcategory name:", sub.name || "");
-    if (name == null || !name.trim()) return;
-
+    const name = prompt("Edit subcategory:", sub.name || "");
+    if (!name) return;
     try {
-      const updatedSubcategories = [...cat.subcategories];
-      updatedSubcategories[idx] = { ...sub, name: name.trim() };
-
-      await updateCategory(cat.id, { subcategories: updatedSubcategories });
+      const updated = [...cat.subcategories];
+      updated[idx] = { ...sub, name: name.trim() };
+      await updateCategory(catId, { subcategories: updated });
       await this._loadCategories();
-
-      // Refresh subpanel
-      const panel = this.querySelector(`#subpanel-${cat.id}`);
-      if (panel && panel.style.display !== "none") {
-        const updatedCat = this._categories.find(c => c.id === catId);
-        if (updatedCat) this._renderSubpanel(updatedCat, panel);
-      }
-
-      this._showToast("Subcategory updated");
-    } catch (error) {
-      console.error("Failed to update subcategory:", error);
-      this._showToast("Failed to update subcategory");
+      this._showToast("Updated");
+    } catch (err) {
+      console.error("Update sub failed:", err);
+      this._showToast("Failed");
     }
   }
 
   async _onDeleteSubcategory(catId, idx) {
-    const cat = this._categories.find(c => c.id === catId);
-    if (!cat || !cat.subcategories || !cat.subcategories[idx]) return;
-
-    const sub = cat.subcategories[idx];
-    if (!confirm(`Delete subcategory "${sub.name}"?`)) return;
-
+    if (!confirm("Delete this subcategory?")) return;
     try {
-      const updatedSubcategories = cat.subcategories.filter((_, i) => i !== idx);
-
-      await updateCategory(cat.id, { subcategories: updatedSubcategories });
+      const cat = this._categories.find(c => c.id === catId);
+      const updated = cat.subcategories.filter((_, i) => i !== idx);
+      await updateCategory(catId, { subcategories: updated });
       await this._loadCategories();
-
-      // Refresh subpanel
-      const panel = this.querySelector(`#subpanel-${cat.id}`);
-      if (panel && panel.style.display !== "none") {
-        const updatedCat = this._categories.find(c => c.id === catId);
-        if (updatedCat) this._renderSubpanel(updatedCat, panel);
-      }
-
-      this._showToast("Subcategory deleted");
-    } catch (error) {
-      console.error("Failed to delete subcategory:", error);
-      this._showToast("Failed to delete subcategory");
+      this._showToast("Deleted");
+    } catch (err) {
+      console.error("Delete sub failed:", err);
+      this._showToast("Failed");
     }
   }
 
-  /* ---------------- Utilities ---------------- */
-  _escape(s = "") {
-    return String(s)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;");
+  /* -------------------- Utilities -------------------- */
+  _esc(s = "") {
+    return String(s).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   }
 
-  _showToast(msg = "", timeout = 1600) {
-    const toast = this.querySelector("#settings-toast");
-    if (!toast) return;
-
-    toast.textContent = msg;
-    toast.classList.add("show");
-
-    if (this._toastTimer) clearTimeout(this._toastTimer);
-    this._toastTimer = setTimeout(() => {
-      toast.classList.remove("show");
-    }, timeout);
+  _showToast(msg = "") {
+    const t = this.querySelector("#settings-toast");
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => t.classList.remove("show"), 1400);
   }
 }
 
