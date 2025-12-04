@@ -30,6 +30,9 @@
     <link rel="stylesheet" href="css/header-bar.css">
     <link rel="stylesheet" href="css/tab-bar.css">
     <link rel="stylesheet" href="css/entry-sheet.css">
+
+    <!-- 🔥 NEW — CATEGORY EDITOR CSS -->
+    <link rel="stylesheet" href="css/category-editor.css">
 </head>
 
 <body>
@@ -50,11 +53,20 @@
 
     <!-- Modals -->
     <entry-sheet></entry-sheet>
+
+    <!-- 🔥 NEW — CATEGORY EDITOR MODAL -->
+    <category-editor></category-editor>
+
     <div id="toast-root"></div>
 
     <!-- Scripts -->
     <script src="https://unpkg.com/dexie@3.2.2/dist/dexie.min.js"></script>
+
+    <!-- Main App -->
     <script type="module" src="js/app.js"></script>
+
+    <!-- 🔥 NEW — CATEGORY EDITOR JS -->
+    <script type="module" src="components/category-editor.js"></script>
 </body>
 
 </html>
