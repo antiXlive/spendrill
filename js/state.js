@@ -1,8 +1,11 @@
 // js/state.js
-// Central state manager for Spendrill
+// Updated for NEW DB structure + NEW DEFAULT_CATEGORIES + EMOJI FIX
 
 import * as DB from "./db.js";
 
+// ------------------------
+// Private state
+// ------------------------
 let _state = {
   transactions: [],
   categories: [],
@@ -10,94 +13,217 @@ let _state = {
   pinHash: null
 };
 
+// ------------------------
+// Transaction enricher (WITH EMOJI SUPPORT)
+// ------------------------
+function enrichTransaction(tx, catMap) {
+  const cat = catMap.get(tx.catId);
+  const sub = cat?.subcategories?.find(s => s.id === tx.subId);
+
+  // ⭐ EMOJI FIX — universal emoji used by UI
+  const emoji = sub?.emoji || cat?.emoji || "🧾";
+
+  return {
+    ...tx,
+
+    // UI emoji
+    emoji,
+
+    // Category
+    catName: cat?.name || "Uncategorized",
+    catEmoji: cat?.emoji || "🧾",
+    catImage: cat?.image || "",
+
+    // Subcategory
+    subName: sub?.name || "",
+    subEmoji: sub?.emoji || "",
+    subImage: sub?.image || ""
+  };
+}
+
+// ------------------------
+// STATE MODULE
+// ------------------------
 const StateModule = {
   getState() {
     return _state;
   },
 
-  // Load everything from DB into a single state object
+  // ------------------------
+  // LOAD FULL SNAPSHOT
+  // ------------------------
   async loadSnapshot() {
     try {
-      // Use DB helpers instead of direct DB access
-      const transactions = await DB.getAllTransactions();
-      const categories = await DB.getAllCategories();
-      const settingsArray = await DB.db.settings.toArray();
-
-      // Convert settings array to object
-      const settings = {};
-      for (const row of settingsArray) {
-        settings[row.key] = row.value;
+      if (DB.getDBStatus() !== DB.DBStatus.READY) {
+        await DB.initDB();
       }
 
-      // Create category lookup map for O(1) performance
+      const [transactions, categories, settings] = await Promise.all([
+        DB.getAllTransactions(),
+        DB.getAllCategories(),
+        DB.getAllSettings()
+      ]);
+
+      const settingsObj = {};
+      for (const row of settings) settingsObj[row.key] = row.value;
+
       const catMap = new Map(categories.map(c => [c.id, c]));
 
-      // ENRICH transactions with category/subcategory names
-      const enrichedTransactions = transactions.map(tx => {
-        const cat = catMap.get(tx.catId);
-        const sub = cat?.subcategories?.find(s => s.id === tx.subId);
-
-        return {
-          ...tx,
-          catName: cat?.name || "Uncategorized",
-          subName: sub?.name || "",
-          emoji: cat?.emoji || "🧾"
-        };
-      });
+      const enriched = transactions
+        .map(tx => enrichTransaction(tx, catMap))
+        .sort((a, b) => b.date.localeCompare(a.date));
 
       _state = {
-        transactions: enrichedTransactions,
+        transactions: enriched,
         categories,
-        settings,
-        pinHash: settings.pinHash || null
+        settings: settingsObj,
+        pinHash: settingsObj.pinHash || null
       };
 
-      console.log(`✅ State loaded: ${enrichedTransactions.length} transactions, ${categories.length} categories`);
-      
+      console.log(`✅ Loaded ${enriched.length} transactions`);
       return _state;
-    } catch (error) {
-      console.error("❌ Failed to load state snapshot:", error);
-      
-      // Return a safe empty state instead of crashing
-      _state = {
-        transactions: [],
-        categories: [],
-        settings: {},
-        pinHash: null
-      };
-      
+    } catch (err) {
+      console.error("❌ Failed to load snapshot:", err);
       return _state;
     }
   },
 
-  // Save pin hash in settings + local state
-  async setPinHash(hash) {
+  // ------------------------
+  // LOAD ONLY CURRENT MONTH
+  // ------------------------
+  async loadCurrentMonth() {
     try {
-      await DB.saveSetting("pinHash", hash);
-      _state.pinHash = hash;
-      console.log("✅ PIN hash updated");
-    } catch (error) {
-      console.error("❌ Failed to save PIN hash:", error);
-      throw error;
-    }
-  },
-
-  // Helper: Get all settings as object
-  async getAllSettings() {
-    try {
-      const settingsArray = await DB.db.settings.toArray();
-      const settings = {};
-      for (const row of settingsArray) {
-        settings[row.key] = row.value;
+      if (DB.getDBStatus() !== DB.DBStatus.READY) {
+        await DB.initDB();
       }
-      return settings;
-    } catch (error) {
-      console.error("❌ Failed to get settings:", error);
-      return {};
+
+      const [transactions, categories] = await Promise.all([
+        DB.getCurrentMonthTransactions(),
+        DB.getAllCategories()
+      ]);
+
+      const catMap = new Map(categories.map(c => [c.id, c]));
+
+      _state.transactions = transactions
+        .map(tx => enrichTransaction(tx, catMap))
+        .sort((a, b) => b.date.localeCompare(a.date));
+
+      _state.categories = categories;
+
+      console.log(`📅 Current month loaded: ${_state.transactions.length}`);
+      return _state;
+    } catch (err) {
+      console.error("❌ Failed to load current month:", err);
+      return _state;
     }
   },
 
-  // Helper: Clear local state (useful for logout)
+  // ------------------------
+  // Refresh Transactions
+  // ------------------------
+  async refreshTransactions() {
+    try {
+      const transactions = await DB.getAllTransactions();
+      const catMap = new Map(_state.categories.map(c => [c.id, c]));
+
+      _state.transactions = transactions
+        .map(t => enrichTransaction(t, catMap))
+        .sort((a, b) => b.date.localeCompare(a.date));
+
+      return _state;
+    } catch (err) {
+      console.error("❌ refreshTransactions failed:", err);
+      return _state;
+    }
+  },
+
+  // ------------------------
+  // Refresh Categories → re-enrich TX
+  // ------------------------
+  async refreshCategories() {
+    try {
+      const categories = await DB.getAllCategories();
+      _state.categories = categories;
+      await this.refreshTransactions();
+      return _state;
+    } catch (err) {
+      console.error("❌ refreshCategories failed:", err);
+      return _state;
+    }
+  },
+
+  // ------------------------
+  // CRUD TRANSACTIONS
+  // ------------------------
+  async addTransaction(data) {
+    const tx = await DB.addTransaction(data);
+    await this.refreshTransactions();
+    return tx;
+  },
+
+  async updateTransaction(id, updates) {
+    const tx = await DB.updateTransaction(id, updates);
+    await this.refreshTransactions();
+    return tx;
+  },
+
+  async deleteTransaction(id) {
+    await DB.deleteTransaction(id);
+    await this.refreshTransactions();
+  },
+
+  // ------------------------
+  // SEARCH
+  // ------------------------
+  async searchTransactions(query) {
+    const results = await DB.searchTransactions(query);
+    const catMap = new Map(_state.categories.map(c => [c.id, c]));
+    return results.map(t => enrichTransaction(t, catMap));
+  },
+
+  // ------------------------
+  // SETTINGS
+  // ------------------------
+  async getSetting(key, defaultValue = null) {
+    return await DB.getSetting(key, defaultValue);
+  },
+
+  async saveSetting(key, value) {
+    await DB.saveSetting(key, value);
+    if (_state.settings) _state.settings[key] = value;
+  },
+
+  async setPinHash(hash) {
+    await DB.saveSetting("pinHash", hash);
+    _state.pinHash = hash;
+    if (_state.settings) _state.settings.pinHash = hash;
+  },
+
+  // ------------------------
+  // IMPORT / EXPORT
+  // ------------------------
+  async exportData() {
+    return await DB.exportData();
+  },
+
+  async importData(data, clearExisting = false) {
+    await DB.importData(data, clearExisting);
+    await this.loadSnapshot();
+  },
+
+  // ------------------------
+  // WIPE
+  // ------------------------
+  async wipeAll() {
+    await DB.wipeAll();
+    _state = {
+      transactions: [],
+      categories: [],
+      settings: {},
+      pinHash: null
+    };
+  },
+
   clearState() {
     _state = {
       transactions: [],
@@ -105,49 +231,6 @@ const StateModule = {
       settings: {},
       pinHash: null
     };
-    console.log("✅ State cleared");
-  },
-
-  // Helper: Refresh only transactions (faster than full reload)
-  async refreshTransactions() {
-    try {
-      const transactions = await DB.getAllTransactions();
-      const catMap = new Map(_state.categories.map(c => [c.id, c]));
-
-      const enrichedTransactions = transactions.map(tx => {
-        const cat = catMap.get(tx.catId);
-        const sub = cat?.subcategories?.find(s => s.id === tx.subId);
-
-        return {
-          ...tx,
-          catName: cat?.name || "Uncategorized",
-          subName: sub?.name || "",
-          emoji: cat?.emoji || "🧾"
-        };
-      });
-
-      _state.transactions = enrichedTransactions;
-      return _state;
-    } catch (error) {
-      console.error("❌ Failed to refresh transactions:", error);
-      return _state;
-    }
-  },
-
-  // Helper: Refresh only categories (faster than full reload)
-  async refreshCategories() {
-    try {
-      const categories = await DB.getAllCategories();
-      _state.categories = categories;
-      
-      // Re-enrich transactions with new category data
-      await this.refreshTransactions();
-      
-      return _state;
-    } catch (error) {
-      console.error("❌ Failed to refresh categories:", error);
-      return _state;
-    }
   }
 };
 
