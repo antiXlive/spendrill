@@ -8,9 +8,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#050B16">
     <meta name="description" content="Elegant expense tracking app">
-    
+
     <title>Spendrill — Expense Manager</title>
-    
+
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="manifest" href="pwa/manifest.json">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -42,12 +42,12 @@
     <!-- APP ROOT -->
     <div class="app-root">
         <header-bar></header-bar>
-        
+
         <home-screen data-screen="home"></home-screen>
         <ai-screen data-screen="ai" hidden></ai-screen>
         <stats-screen data-screen="stats" hidden></stats-screen>
         <settings-screen data-screen="settings" hidden></settings-screen>
-        
+
         <tab-bar></tab-bar>
     </div>
 
@@ -56,6 +56,12 @@
 
 
     <div id="toast-root"></div>
+    <script>
+        if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.register("/service-worker.js");
+        }
+    </script>
+
 
     <!-- Scripts -->
     <script src="https://unpkg.com/dexie@3.2.2/dist/dexie.min.js"></script>

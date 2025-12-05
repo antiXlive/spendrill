@@ -21,6 +21,12 @@
       "purpose": "any"
     },
     {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/icons/icon-128.png",
       "sizes": "128x128",
       "type": "image/png",
@@ -39,7 +45,10 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["finance", "productivity"],
+  "categories": [
+    "finance",
+    "productivity"
+  ],
   "description": "Spendrill — a lightweight, privacy-first mobile PWA to manage personal expenses.",
   "lang": "en-US"
 }
