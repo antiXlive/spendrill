@@ -1,43 +1,53 @@
-// /js/utils.js
-// Common helpers used across app
-
-// Generate v4 UUID
-// /js/utils.js
-
-// Fallback UUID v4 generator (browser-safe)
-export function uuidv4() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = (crypto.getRandomValues(new Uint8Array(1))[0] % 16);
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
-
-
-// Hash (used for PIN)
-export async function sha256Hex(str) {
-  const enc = new TextEncoder().encode(str);
-  const hash = await crypto.subtle.digest("SHA-256", enc);
-  return [...new Uint8Array(hash)]
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-// Convert a name → predictable ID
-// Example: "Restaurants & Cafes 🍴" → "restaurants_cafes"
+export const esc = (s) =>
+    String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+export const fmtCurrency = (n, opts = { locale: "en-IN", currency: "INR", maxFrac: 0 }) => {
+    try {
+        return new Intl.NumberFormat(opts.locale, {
+            style: "currency",
+            currency: opts.currency,
+            maximumFractionDigits: opts.maxFrac,
+        }).format(Number(n) || 0);
+    } catch {
+        const v = Math.round(Number(n) || 0);
+        return "₹" + v;
+    }
+};
+export const dateLabelFromKey = (key) => {
+    const d = new Date(key);
+    const t = new Date();
+    const y = new Date();
+    y.setDate(t.getDate() - 1);
+    t.setHours(0, 0, 0, 0);
+    y.setHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
+    if (d.getTime() === t.getTime()) return "Today";
+    if (d.getTime() === y.getTime()) return "Yesterday";
+    return d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }).replace(",", "");
+};
+export const uuid = () => {
+    try {
+        return crypto.randomUUID();
+    } catch {
+        return Date.now().toString(36) + Math.random().toString(36).slice(2);
+    }
+};
+export const resolveIcon = (t) => {
+    if (!t) return "🧾";
+    if (t.subId) {
+        if (t.subImage?.trim()) return `<img src="${esc(t.subImage)}" class="tx-img">`;
+        if (t.subEmoji) return esc(t.subEmoji);
+    }
+    if (t.catImage?.trim()) return `<img src="${esc(t.catImage)}" class="tx-img">`;
+    if (t.catEmoji) return esc(t.catEmoji);
+    return "🧾";
+};
 export function slugify(str = "") {
-  return str
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
+    return String(str)
+        .normalize("NFKD")
+        .replace(/[^\p{L}\p{N}\p{Emoji}\s-]/gu, "") // keep letters, numbers, emoji
+        .trim()
+        .toLowerCase()
+        .replace(/[\s\W-]+/g, "-")
+        .replace(/^-+|-+$/g, "");
 }
-// js/utils.js (append or merge)
-export function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    if (!file) return resolve(null);
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = (err) => reject(err);
-    reader.readAsDataURL(file);
-  });
-}
+

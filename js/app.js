@@ -1,12 +1,13 @@
 // js/app.js
-// Full app bootstrap (FIXED WORKER + FIXED computeStats)
-// ===============================================
+// Clean app bootstrap — NO WORKER, instant stats pipeline
+// ========================================================
 
 import EventBus from "./event-bus.js";
 import StateModule from "./state.js";
 import * as DB from "./db.js";
 import { THEMES } from "./constants.js";
 import { initDefaultData } from "./init-default-data.js";
+import { computeStats } from "./state-selectors.js";
 
 // Components
 import "../components/pin-screen.js";
@@ -21,7 +22,6 @@ import "../components/category-editor.js";
 
 window.__STATE__ = null;
 window.__LATEST_STATS__ = null;
-let statsWorker = null;
 
 const DEV_DISABLE_PIN = true;
 
@@ -58,18 +58,15 @@ EventBus.on("navigate", ({ to }) => navigate(to));
 window.addEventListener("DOMContentLoaded", () => navigate("home"));
 
 // =============================================================
-// INIT
+// APP INIT
 // =============================================================
 (async function init() {
     try {
         await DB.initDB();
         console.log("✅ DB ready");
 
-        try {
-            await initDefaultData();
-        } catch (err) {
-            console.warn("initDefaultData:", err);
-        }
+        try { await initDefaultData(); } 
+        catch (err) { console.warn("initDefaultData:", err); }
 
         setupEventHandlers();
 
@@ -77,39 +74,15 @@ window.addEventListener("DOMContentLoaded", () => navigate("home"));
         window.__STATE__ = snapshot;
         EventBus.emit("state-changed", snapshot);
 
+        // Theme
         const themeName = snapshot.settings?.theme || "midnight";
         document.documentElement.setAttribute(
             "data-theme",
             THEMES.includes(themeName) ? themeName : "midnight"
         );
 
-        // ===============================================
-        // FIXED STATS WORKER
-        // ===============================================
-        try {
-            const workerURL = new URL("worker-stats.js", import.meta.url);
-            console.log("Stats worker:", workerURL.href);
-
-            statsWorker = new Worker(workerURL, { type: "module" });
-
-            // FIXED STATS WORKER LISTENER
-            statsWorker.onmessage = (e) => {
-                if (e.data?.type === "stats") {
-                    window.__LATEST_STATS__ = e.data.payload;
-                    EventBus.emit("stats-ready", e.data.payload); // << KEY FIX
-                }
-            };
-
-            statsWorker.onerror = (err) => console.error("❌ Worker error:", err);
-
-
-            statsWorker.onerror = (err) => console.error("❌ Worker error:", err);
-        } catch (err) {
-            console.error("❌ Worker load failed:", err);
-        }
-
-        // run stats once
-        await computeStats();
+        // Run stats immediately
+        await emitStatsNow();
 
         // PIN bypass
         if (DEV_DISABLE_PIN) {
@@ -122,6 +95,7 @@ window.addEventListener("DOMContentLoaded", () => navigate("home"));
         }
 
         console.log("🚀 App ready");
+
     } catch (err) {
         console.error("❌ Init error:", err);
         EventBus.emit("toast", { message: "Initialization failed", type: "error" });
@@ -129,26 +103,18 @@ window.addEventListener("DOMContentLoaded", () => navigate("home"));
 })();
 
 // =============================================================
-// FIXED computeStats()
+// Unified computeStats() — now runs on main thread (fast)
 // =============================================================
-async function computeStats() {
+async function emitStatsNow() {
     try {
         const state = window.__STATE__ || (await StateModule.loadSnapshot());
+        const txList = state.transactions || [];
 
-        if (!statsWorker) {
-            console.warn("⚠ Stats worker not ready");
-            return;
-        }
-
-        statsWorker.postMessage({
-            type: "compute",
-            payload: {
-                transactions: state.transactions || []
-            }
-        });
+        // Send RAW transactions to StatsScreen
+        EventBus.emit("stats-ready", txList);
 
     } catch (e) {
-        console.error("computeStats failed:", e);
+        console.error("emitStatsNow failed:", e);
     }
 }
 
@@ -175,7 +141,7 @@ function setupEventHandlers() {
     // Refresh
     EventBus.on("request-refresh", async () => {
         await refreshState();
-        await computeStats();
+        await emitStatsNow();
         EventBus.emit("toast", { message: "Refreshed", type: "success" });
     });
 
@@ -183,7 +149,8 @@ function setupEventHandlers() {
     EventBus.on("tx-add", async ({ tx }) => {
         try {
             await StateModule.addTransaction(tx);
-            await computeStats();
+            await refreshState();
+            await emitStatsNow();
             EventBus.emit("toast", { message: "Transaction added", type: "success" });
         } catch (e) {
             EventBus.emit("toast", { message: e.message, type: "error" });
@@ -193,7 +160,8 @@ function setupEventHandlers() {
     EventBus.on("tx-update", async ({ tx }) => {
         try {
             await StateModule.updateTransaction(tx.id, tx);
-            await computeStats();
+            await refreshState();
+            await emitStatsNow();
             EventBus.emit("toast", { message: "Updated", type: "success" });
         } catch (e) {
             EventBus.emit("toast", { message: e.message, type: "error" });
@@ -203,7 +171,8 @@ function setupEventHandlers() {
     EventBus.on("tx-delete", async ({ id }) => {
         try {
             await StateModule.deleteTransaction(id);
-            await computeStats();
+            await refreshState();
+            await emitStatsNow();
             EventBus.emit("toast", { message: "Deleted", type: "success" });
         } catch (e) {
             EventBus.emit("toast", { message: e.message, type: "error" });
@@ -241,15 +210,14 @@ function setupEventHandlers() {
         }
     });
 
-    // Import/Export
+    // Import
     EventBus.on("data-imported", async () => {
         await refreshState();
-        await computeStats();
+        await emitStatsNow();
     });
 
-    // Backup
     EventBus.on("request-backup-now", async () => {
-        await autoBackup();
+        await autoBackup?.();
     });
 }
 
@@ -259,21 +227,16 @@ async function refreshState() {
     EventBus.emit("state-changed", window.__STATE__);
 }
 
-async function refreshTransactionsOnly() {
-    window.__STATE__ = await StateModule.refreshTransactions();
-    EventBus.emit("state-changed", window.__STATE__);
-}
-
 async function refreshCategoriesOnly() {
     window.__STATE__ = await StateModule.refreshCategories();
     EventBus.emit("state-changed", window.__STATE__);
 }
 
-// Expose global
+// Expose
 window.SpendRill = {
     navigate,
     showToast,
-    computeStats,
+    emitStatsNow,
     refreshState,
     EventBus
 };

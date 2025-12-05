@@ -1,9 +1,24 @@
-// components/home-screen.js
-// Full fixed version — WITH category/subcategory image-emoji fallback
-// No Shadow DOM. External CSS loaded from ../css/home-screen.css
+// /components/home-screen.js
+// Home Screen — refined spacing, proper icon/image ratio, responsive fonts, minus amounts in red.
 
 import { EventBus } from "../js/event-bus.js";
-import StateModule from "../js/state.js";
+import {
+  esc,
+  fmtCurrency,
+  dateLabelFromKey,
+  resolveIcon
+} from "../js/utils.js";
+
+import {
+  getTransactionsByMonth,
+  groupByDate,
+  computeMiniChart,
+  computeTopCategory,
+  deleteTransaction
+} from "../js/state-selectors.js";
+
+import { renderMiniBarChart } from "../js/charts.js";
+import { createRipple, attachLongPress, enableSwipe } from "../js/ui-interactions.js";
 
 class HomeScreen extends HTMLElement {
   constructor() {
@@ -11,11 +26,6 @@ class HomeScreen extends HTMLElement {
     this.current = new Date();
     this.tx = [];
     this.grouped = [];
-    this._touch = { x: 0, y: 0, start: 0 };
-    this._isAnimating = false;
-    this._longPressTimer = null;
-    this._onScrollBound = null;
-    this._currentYearMonth = null;
     this.render();
   }
 
@@ -23,93 +33,28 @@ class HomeScreen extends HTMLElement {
     this._bind();
     this._loadMonth(this.current.getFullYear(), this.current.getMonth());
 
-    this._stateChangedHandler = () => {
-      this._loadMonth(this.current.getFullYear(), this.current.getMonth());
-    };
+    this._stateHandler = () => this._loadMonth(this.current.getFullYear(), this.current.getMonth());
+    EventBus.on("state-changed", this._stateHandler);
+    EventBus.on("stats-ready", this._stateHandler);
 
-    EventBus.on("state-changed", this._stateChangedHandler);
-    EventBus.on("stats-ready", this._stateChangedHandler);
-
-    this._onScrollBound = this._onScroll.bind(this);
-    this.addEventListener("scroll", this._onScrollBound, { passive: true });
+    enableSwipe(this, () => this._changeMonth(1), () => this._changeMonth(-1));
   }
 
   disconnectedCallback() {
-    try {
-      EventBus.off("state-changed", this._stateChangedHandler);
-      EventBus.off("stats-ready", this._stateChangedHandler);
-    } catch {}
-
-    if (this._onScrollBound) this.removeEventListener("scroll", this._onScrollBound);
-    if (this._longPressTimer) clearTimeout(this._longPressTimer);
+    EventBus.off("state-changed", this._stateHandler);
+    EventBus.off("stats-ready", this._stateHandler);
   }
 
-  /* --------------------------
-      UTIL
-  --------------------------- */
-  _fmtCurrency(n) {
-    try {
-      return new Intl.NumberFormat("en-IN", {
-        style: "currency",
-        currency: "INR",
-        maximumFractionDigits: 0
-      }).format(n);
-    } catch {
-      return "₹" + Math.round(n);
-    }
-  }
-
-  _dateKey(iso) { return iso.slice(0, 10); }
-
-  _labelFromKey(key) {
-    const date = new Date(key);
-    const today = new Date();
-    const yest = new Date();
-    yest.setDate(today.getDate() - 1);
-
-    today.setHours(0,0,0,0);
-    yest.setHours(0,0,0,0);
-    date.setHours(0,0,0,0);
-
-    if (date.getTime() === today.getTime()) return "Today";
-    if (date.getTime() === yest.getTime()) return "Yesterday";
-
-    return date.toLocaleDateString(undefined,{day:"2-digit",month:"short",year:"numeric"}).replace(",", "");
-  }
-
-  _esc(s=""){ return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
-
-  /* --------------------------
-      NEW ICON FALLBACK LOGIC
-  --------------------------- */
-  _getTxIcon(t){
-    // subcategory first
-    if (t.subId) {
-      if (t.subImage?.trim()) return `<img src="${this._esc(t.subImage)}" class="tx-img">`;
-      if (t.subEmoji) return this._esc(t.subEmoji);
-    }
-    // then category
-    if (t.catImage?.trim()) return `<img src="${this._esc(t.catImage)}" class="tx-img">`;
-    if (t.catEmoji) return this._esc(t.catEmoji);
-    return "🧾";
-  }
-
-  /* --------------------------
-      LOAD MONTH
-  --------------------------- */
   async _loadMonth(y, m) {
-    const ym = `${y}-${String(m + 1).padStart(2, "0")}`;
-    this._currentYearMonth = ym;
-
     try {
-      const snapshot = await StateModule.loadSnapshot();
-      const all = snapshot.transactions || [];
-      const txs = all.filter(t => t.date && t.date.startsWith(ym));
-
-      this.tx = txs.sort((a,b) => new Date(b.date)-new Date(a.date));
-      this._groupByDate();
+      this.tx = await getTransactionsByMonth(y, m);
+      this.grouped = groupByDate(this.tx).map(g => ({ ...g, label: dateLabelFromKey(g.dateKey) }));
       this._render();
-    } catch (err){
+
+      const daily = computeMiniChart(this.tx);
+      const chart = this.querySelector("#miniChart");
+      renderMiniBarChart(chart, daily, "red");
+    } catch (err) {
       console.error("HomeScreen _loadMonth failed:", err);
       this.tx = [];
       this.grouped = [];
@@ -117,145 +62,39 @@ class HomeScreen extends HTMLElement {
     }
   }
 
-  _groupByDate(){
-    const map = new Map();
-    for (const t of this.tx) {
-      const k = this._dateKey(t.date);
-      if (!map.has(k)) map.set(k,{dateKey:k,items:[],total:0});
-      const g = map.get(k);
-      g.items.push(t);
-      g.total += Number(t.amount||0);
-    }
-    this.grouped = [...map.values()]
-      .sort((a,b)=>new Date(b.dateKey)-new Date(a.dateKey))
-      .map(g => ({...g, label:this._labelFromKey(g.dateKey)}));
-  }
-
-  /* --------------------------
-      TOUCH & EVENTS
-  --------------------------- */
-  _bind(){
-    this.addEventListener("touchstart",(e)=>this._onTouchStart(e),{passive:true});
-    this.addEventListener("touchmove",(e)=>this._onTouchMove(e),{passive:true});
-    this.addEventListener("touchend",()=>this._onTouchEnd(),{passive:true});
-
-    this.addEventListener("click", (e)=>{
-      const el = e.target.closest("[data-action]");
-      if(!el) return;
-      const id = el.dataset.id;
-      const tx = this.tx.find(t=>String(t.id)===String(id));
-      this._createRipple(e,el);
-      EventBus.emit("open-entry-sheet", tx||{});
-    });
-  }
-
-  _onTouchStart(e){
-    const t = e.touches[0];
-    this._touch.start = t.clientX;
-    this._touch.x = t.clientX;
-    this._touch.y = t.clientY;
-
-    const item = e.target.closest(".tx-item");
-    if (item?.dataset.id) this._setupLongPress(item);
-  }
-
-  _onTouchMove(e){
-    const t = e.touches[0];
-    const dx = Math.abs(t.clientX - this._touch.start);
-    const dy = Math.abs(t.clientY - this._touch.y);
-    if (dx>10 || dy>10) this._cancelLongPress();
-    this._touch.x = t.clientX;
-    this._touch.y = t.clientY;
-  }
-
-  _onTouchEnd(){
-    this._cancelLongPress();
-    if (this._isAnimating) return;
-    const dx = this._touch.x - this._touch.start;
-    if (dx < -60) this._changeMonth(1);
-    else if (dx > 60) this._changeMonth(-1);
-  }
-
-  _changeMonth(dir){
-    if (this._isAnimating) return;
-    this._isAnimating = true;
-
-    const d = new Date(this.current.getFullYear(), this.current.getMonth()+dir, 1);
+  _changeMonth(dir) {
+    const d = new Date(this.current.getFullYear(), this.current.getMonth() + dir, 1);
     this.current = d;
-
-    const daysList = this.querySelector("#daysList");
-    if (daysList){
-      daysList.style.opacity="0";
-      daysList.style.transform=`translateX(${dir*20}px)`;
-    }
-
-    setTimeout(()=>{
-      this._loadMonth(d.getFullYear(), d.getMonth());
-      setTimeout(()=>{
-        if(daysList){
-          daysList.style.transition="all .3s ease";
-          daysList.style.opacity="1";
-          daysList.style.transform="translateX(0)";
-        }
-        setTimeout(()=>{
-          if(daysList) daysList.style.transition="";
-          this._isAnimating=false;
-        },300);
-      },50);
-    },150);
-
-    if(navigator.vibrate) navigator.vibrate(10);
+    this._loadMonth(d.getFullYear(), d.getMonth());
   }
 
-  _setupLongPress(el){
-    this._cancelLongPress();
-    el.classList.add("pressing");
-    this._longPressTimer = setTimeout(()=>{
+  _bind() {
+    this.addEventListener("click", (e) => {
+      const el = e.target.closest("[data-action]");
+      if (!el) return;
       const id = el.dataset.id;
-      const tx = this.tx.find(t=>String(t.id)===String(id));
-      if(navigator.vibrate) navigator.vibrate(50);
-      if(tx && confirm(`Delete "${tx.note||tx.catName||tx.subName||"transaction"}"?`)){
-        el.classList.add("deleting");
-        EventBus.emit("tx-delete",{id:tx.id});
-      }
-      el.classList.remove("pressing");
-    },700);
+      const tx = this.tx.find(t => String(t.id) === String(id));
+      createRipple(e, el);
+      EventBus.emit("open-entry-sheet", tx);
+    });
+
+    // Long press to delete
+    this.addEventListener("touchstart", (e) => {
+      const item = e.target.closest(".tx-item");
+      if (!item) return;
+
+      attachLongPress(item, () => {
+        const id = item.dataset.id;
+        const tx = this.tx.find(t => String(t.id) === String(id));
+        if (tx && confirm(`Delete "${tx.note || tx.subName || tx.catName}"?`)) {
+          item.classList.add("deleting");
+          deleteTransaction(tx.id);
+        }
+      });
+    }, { passive: true });
   }
 
-  _cancelLongPress(){
-    if(this._longPressTimer) clearTimeout(this._longPressTimer);
-    this._longPressTimer=null;
-    this.querySelectorAll(".tx-item.pressing").forEach(el=>el.classList.remove("pressing"));
-  }
-
-  _createRipple(e,el){
-    const r = el.getBoundingClientRect();
-    const ripple = document.createElement("span");
-    ripple.className="ripple";
-    ripple.style.left = e.clientX - r.left + "px";
-    ripple.style.top = e.clientY - r.top + "px";
-    el.appendChild(ripple);
-    setTimeout(()=>ripple.remove(),600);
-  }
-
-  _onScroll(){
-    const y = this.scrollTop||0;
-    const summary = this.querySelector(".summary");
-    if(!summary) return;
-
-    const c = Math.min(y,140);
-    const translate = c*0.25;
-    const scale = 1 - c/1200;
-    const opacity = 1 - Math.min(c/400,0.2);
-
-    summary.style.transform=`translateY(${translate}px) scale(${scale})`;
-    summary.style.opacity=opacity;
-  }
-
-  /* --------------------------
-      BASE DOM
-  --------------------------- */
-  render(){
+  render() {
     this.innerHTML = `
       <div class="home-content">
         <div class="summary">
@@ -286,111 +125,80 @@ class HomeScreen extends HTMLElement {
     `;
   }
 
-  /* --------------------------
-      MAIN RENDER
-  --------------------------- */
-  _render(){
-    const monthName = this.querySelector("#monthName");
-    const monthTotalEl = this.querySelector("#monthTotal");
-    const txCount = this.querySelector("#txCount");
-    const topCat = this.querySelector("#topCat");
-    const miniChart = this.querySelector("#miniChart");
+  _render() {
+    const monthLabel = this.current.toLocaleString(undefined, { month: "long", year: "numeric" });
+    this.querySelector("#monthName").textContent = monthLabel;
+
+    const total = this.tx.reduce((s, t) => s + Number(t.amount || 0), 0);
+    this.querySelector("#monthTotal").textContent = fmtCurrency(total);
+
+    this.querySelector("#txCount").textContent = `${this.tx.length} transaction${this.tx.length !== 1 ? "s" : ""}`;
+    const top = computeTopCategory(this.tx);
+    this.querySelector("#topCat").textContent = top ? `${top.name} (${fmtCurrency(top.value)})` : "—";
+
     const daysList = this.querySelector("#daysList");
     const emptyState = this.querySelector("#emptyState");
 
-    const monthLabel = this.current.toLocaleString(undefined,{month:"long",year:"numeric"});
-    monthName.textContent = monthLabel;
-
-    const total = this.tx.reduce((s,t)=>s+Number(t.amount||0),0);
-    monthTotalEl.textContent = this._fmtCurrency(total);
-
-    txCount.textContent = `${this.tx.length} transaction${this.tx.length!==1?"s":""}`;
-    topCat.textContent = `Top: ${this._topCategoryText()}`;
-
-    const daily = this.grouped.map(g=>g.total).slice(0,12).reverse();
-    miniChart.innerHTML = this._renderMiniChart(daily);
-
-    daysList.innerHTML="";
-    if(!this.grouped.length){
-      emptyState.style.display="block";
+    if (!this.grouped.length) {
+      emptyState.style.display = "block";
+      daysList.innerHTML = "";
       return;
     }
 
-    emptyState.style.display="none";
+    emptyState.style.display = "none";
+    daysList.innerHTML = "";
 
-    for(const g of this.grouped){
+    for (const g of this.grouped) {
       const header = document.createElement("div");
-      header.className="day-header";
-      if(g.label==="Today") header.classList.add("today");
+      header.className = "day-header";
       header.innerHTML = `
-        <span class="day-label">${this._esc(g.label)}</span>
-        <span class="day-total">${this._fmtCurrency(g.total)}</span>
+        <span class="day-label">${esc(g.label)}</span>
+        <span class="day-total">${fmtCurrency(g.total)}</span>
       `;
       daysList.appendChild(header);
 
       const txWrapper = document.createElement("div");
-      txWrapper.className="tx-list";
-
-      txWrapper.innerHTML = g.items.map(t=>{
-        const amtClass = Number(t.amount)<0 ? "negative" : "";
-        const icon = this._getTxIcon(t);
-
-        return `
-          <div class="tx-item" data-action="open-tx" data-id="${this._esc(t.id)}" tabindex="0">
-            <div class="tx-left">
-              <div class="tx-emoji">${icon}</div>
-              <div class="tx-meta">
-                <div class="tx-cat">${this._esc(t.catName||"Uncategorized")}</div>
-                ${t.subName ? `<div class="tx-subcat">${this._esc(t.subName)}</div>` : ""}
-                ${t.note ? `<div class="tx-note">${this._esc(t.note)}</div>` : ""}
-              </div>
-            </div>
-            <div class="tx-amt ${amtClass}">
-              ${this._fmtCurrency(Number(t.amount||0))}
-            </div>
-          </div>
-        `;
-      }).join("");
-
+      txWrapper.className = "tx-list";
+      txWrapper.innerHTML = g.items.map(t => this._txHTML(t)).join("");
       daysList.appendChild(txWrapper);
     }
   }
 
-  _topCategoryText(){
-    const map = new Map();
-    for(const t of this.tx){
-      const k = t.catName || "Uncategorized";
-      map.set(k,(map.get(k)||0)+Number(t.amount||0));
-    }
-    const arr=[...map.entries()].sort((a,b)=>b[1]-a[1]);
-    if(!arr.length) return "—";
-    const [name,val] = arr[0];
-    return `${name} (${this._fmtCurrency(val)})`;
-  }
+  _txHTML(t) {
+    const icon = resolveIcon(t); // returns emoji HTML or <img ...>
 
-  _renderMiniChart(values){
-    if(!values.length) return "";
-    const w=160,h=60,pad=6;
-    const max=Math.max(...values,1);
-    const step=w/values.length;
+    const amount = Number(t.amount || 0);
+    const formatted = fmtCurrency(Math.abs(amount));
 
-    let html = `
-      <defs>
-        <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" style="stop-color:rgba(37,99,235,0.9);" />
-          <stop offset="100%" style="stop-color:rgba(37,99,235,0.3);" />
-        </linearGradient>
-      </defs>
+    const main = t.subName || t.catName || "Misc";
+    const secondary = (t.subName && t.catName) ? t.catName : "";
+    const note = t.note || "";
+
+    // Show minus sign for ALL amounts, and mark them as negative for red styling
+    const displayAmount = `-${formatted}`;
+
+    return `
+      <div class="tx-item" data-action="open-tx" data-id="${esc(t.id)}">
+
+        <div class="tx-left">
+          <div class="tx-icon-circle">
+            <div class="tx-emoji">${icon}</div>
+          </div>
+
+          <div class="tx-text">
+            <div class="tx-line1">
+              <span class="tx-main">${esc(main)}</span>
+              ${secondary ? `<span class="tx-dot">•</span><span class="tx-secondary">${esc(secondary)}</span>` : ""}
+            </div>
+            ${note ? `<div class="tx-note">${esc(note)}</div>` : ""}
+          </div>
+        </div>
+
+        <div class="tx-amt negative">
+          ${displayAmount}
+        </div>
+      </div>
     `;
-
-    values.forEach((v,i)=>{
-      const barW=Math.max(4,Math.floor(step*0.7));
-      const x=Math.floor(i*step)+Math.floor((step-barW)/2);
-      const barH=Math.round((v/max)*(h-pad*2));
-      const y=h-pad-barH;
-      html+=`<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="4" fill="url(#chartGradient)" />`;
-    });
-    return html;
   }
 }
 

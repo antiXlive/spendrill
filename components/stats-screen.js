@@ -1,48 +1,43 @@
-// components/stats-screen.js
 import { EventBus } from "../js/event-bus.js";
+import { esc,fmtCurrency } from "../js/utils.js";
+import { computeStats } from "../js/state-selectors.js";
+import { renderDonutChart } from "../js/charts.js";
 
-class StatsScreen extends HTMLElement {
-  constructor() {
+class StatsScreen extends HTMLElement{
+  constructor(){
     super();
-    this.stats = null;
-    this.isLoading = true;
-
-    this._donutId = `donutChart-${Math.random().toString(36).slice(2)}`;
-
-    // FIX: stats-ready sends stats directly, not { payload }
-    this._onStatsReady = (stats) => {
-      this.stats = stats;
-      this.isLoading = false;
+    this.stats=null;
+    this.isLoading=true;
+    this._donutId=`donut-${Math.random().toString(36).slice(2)}`;
+    this._onStatsReady=(txList)=>{
+      this.stats=computeStats(txList);
+      this.isLoading=false;
       this.update();
     };
-
-    this._onAuthState = ({ showPin }) => {
-      this.style.display = showPin ? "none" : "block";
+    this._onAuthState=({showPin})=>{
+      this.style.display=showPin?"none":"block";
     };
   }
 
-  connectedCallback() {
+  connectedCallback(){
     this.render();
-    EventBus.on("stats-ready", this._onStatsReady);
-    EventBus.on("auth-state-changed", this._onAuthState);
-
-    // Render initial empty state if no stats yet
+    EventBus.on("stats-ready",this._onStatsReady);
+    EventBus.on("auth-state-changed",this._onAuthState);
     this.update();
   }
 
-  disconnectedCallback() {
-    EventBus.off("stats-ready", this._onStatsReady);
-    EventBus.off("auth-state-changed", this._onAuthState);
+  disconnectedCallback(){
+    EventBus.off("stats-ready",this._onStatsReady);
+    EventBus.off("auth-state-changed",this._onAuthState);
   }
 
-  render() {
-    this.innerHTML = `
+  render(){
+    this.innerHTML=`
       <div class="stats-container">
         <div class="stats-header">
           <h1 class="stats-title">Statistics</h1>
           <p class="stats-subtitle">Your spending overview</p>
         </div>
-
         <div class="stats-content" id="statsBlock">
           <div class="stats-loading">
             <div class="loading-spinner"></div>
@@ -53,105 +48,77 @@ class StatsScreen extends HTMLElement {
     `;
   }
 
-  update() {
-    const block = this.querySelector("#statsBlock");
-    if (!block) return;
+  update(){
+    const block=this.querySelector("#statsBlock");
+    if(!block) return;
 
-    // Still loading?
-    if (this.isLoading && !this.stats) return;
-
-    if (!this.stats || !Object.keys(this.stats.categoryTotals || {}).length) {
-      block.innerHTML = this.getEmptyState();
+    if(this.isLoading||!this.stats){
+      block.innerHTML=`
+        <div class="stats-loading">
+          <div class="loading-spinner"></div>
+          <p>Loading your statistics...</p>
+        </div>`;
       return;
     }
 
-    const { categoryTotals = {}, average = 0, topCategory = null } = this.stats;
+    const {total,average,topCategory,categories}=this.stats;
+    if(!categories.length){
+      block.innerHTML=this._empty();
+      return;
+    }
 
-    const sanitized = Object.fromEntries(
-      Object.entries(categoryTotals).map(([k, v]) => [k, Number(v) || 0])
-    );
-
-    const total = Object.values(sanitized).reduce((s, v) => s + v, 0);
-    const sorted = Object.entries(sanitized).sort((a, b) => b[1] - a[1]);
-
-    block.innerHTML = `
-      ${this.buildSummaryCard(total, sorted.length, average, topCategory)}
-      ${this.buildDonutChart(sorted, total)}
-      ${this.buildCategoryList(sorted, total)}
+    block.innerHTML=`
+      ${this._summary(total,average,topCategory,categories.length)}
+      ${this._donut(categories,total)}
+      ${this._catList(categories,total)}
     `;
 
-    requestAnimationFrame(() => this.drawDonutChart(sorted, total));
+    requestAnimationFrame(()=>{
+      const svg=this.querySelector(`#${this._donutId}`);
+      renderDonutChart(svg,categories);
+    });
   }
 
-  // -------------------------
-  // COMPONENT BUILDERS
-  // -------------------------
-
-  buildSummaryCard(total, count, average, topCategory) {
-    const nf = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
-
-    return `
+  _summary(total,avg,top,count){
+    return`
       <div class="summary-card">
         <div class="summary-header">
           <div class="summary-icon">
-            <svg viewBox="0 0 24 24" width="28" height="28">
-              <path d="M21 12c.55 0 1-.45.95-.998A10 10 0 0 0 13 2.05c-.55-.05-1 .4-1 .95v8a1 1 0 0 0 1 1z"/>
-              <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/>
-            </svg>
+            <svg viewBox="0 0 24 24" width="28" height="28"><path d="M21 12c.55 0 1-.45.95-.998A10 10 0 0 0 13 2.05c-.55-.05-1 .4-1 .95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/></svg>
           </div>
           <div class="summary-main">
             <div class="summary-label">Total Spending</div>
-            <div class="summary-amount">$${nf.format(total)}</div>
+            <div class="summary-amount">${fmtCurrency(total)}</div>
           </div>
         </div>
-
         <div class="summary-stats">
-          <div class="summary-stat">
-            <div class="stat-label">Categories</div>
-            <div class="stat-value">${count}</div>
-          </div>
+          <div class="summary-stat"><div class="stat-label">Categories</div><div class="stat-value">${count}</div></div>
           <div class="summary-divider"></div>
-          <div class="summary-stat">
-            <div class="stat-label">Avg Spend</div>
-            <div class="stat-value">$${Math.round(average)}</div>
-          </div>
+          <div class="summary-stat"><div class="stat-label">Avg Spend</div><div class="stat-value">${fmtCurrency(avg)}</div></div>
           <div class="summary-divider"></div>
-          <div class="summary-stat">
-            <div class="stat-label">Top Category</div>
-            <div class="stat-value">${topCategory || "N/A"}</div>
-          </div>
+          <div class="summary-stat"><div class="stat-label">Top Category</div><div class="stat-value">${esc(top||"N/A")}</div></div>
         </div>
       </div>
     `;
   }
 
-  buildDonutChart(categories, total) {
-    const colors = [
-      '#2563eb', '#06b6d4', '#2dd4bf', '#10b981',
-      '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
-    ];
+  _donut(categories,total){
+    const legend=categories.map(c=>`
+      <div class="legend-item">
+        <div class="legend-color"></div>
+        <div class="legend-label">${esc(c.name)}</div>
+        <div class="legend-value">${c.percent.toFixed(1)}%</div>
+      </div>
+    `).join("");
 
-    const legend = categories
-      .map(([cat, amount], i) => {
-        const p = total ? ((amount / total) * 100).toFixed(1) : 0;
-        return `
-          <div class="legend-item">
-            <div class="legend-color" style="background:${colors[i % colors.length]}"></div>
-            <div class="legend-label">${cat}</div>
-            <div class="legend-value">${p}%</div>
-          </div>
-        `;
-      })
-      .join("");
-
-    return `
+    return`
       <div class="chart-section">
         <div class="section-title">Spending by Category</div>
         <div class="donut-container">
           <div class="donut-wrapper">
             <svg class="donut-chart" viewBox="0 0 200 200" id="${this._donutId}"></svg>
             <div class="donut-center">
-              <div class="donut-total">$${Math.round(total)}</div>
+              <div class="donut-total">${fmtCurrency(total)}</div>
               <div class="donut-label">Total</div>
             </div>
           </div>
@@ -161,86 +128,30 @@ class StatsScreen extends HTMLElement {
     `;
   }
 
-  drawDonutChart(categories, total) {
-    const svg = this.querySelector(`#${this._donutId}`);
-    if (!svg) return;
-
-    svg.innerHTML = "";
-
-    const colors = [
-      '#2563eb', '#06b6d4', '#2dd4bf', '#10b981',
-      '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
-    ];
-
-    const radius = 90;
-    const circ = 2 * Math.PI * radius;
-    let angle = -90;
-
-    // Base ring
-    const base = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    base.setAttribute("cx", 100);
-    base.setAttribute("cy", 100);
-    base.setAttribute("r", radius);
-    base.setAttribute("fill", "none");
-    base.setAttribute("stroke", "rgba(255,255,255,0.05)");
-    base.setAttribute("stroke-width", 30);
-    svg.appendChild(base);
-
-    if (!total) return;
-
-    categories.slice(0, 8).forEach(([cat, amt], i) => {
-      const pct = amt / total;
-      const arc = pct * circ;
-      const a = pct * 360;
-
-      const slice = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      slice.setAttribute("cx", 100);
-      slice.setAttribute("cy", 100);
-      slice.setAttribute("r", radius);
-      slice.setAttribute("fill", "none");
-      slice.setAttribute("stroke", colors[i % colors.length]);
-      slice.setAttribute("stroke-width", 30);
-      slice.setAttribute("stroke-dasharray", `${arc} ${circ}`);
-      slice.setAttribute("transform", `rotate(${angle} 100 100)`);
-      svg.appendChild(slice);
-
-      angle += a;
-    });
-  }
-
-  buildCategoryList(categories, total) {
-    return `
+  _catList(categories,total){
+    return`
       <div class="categories-section">
         <div class="section-title">All Categories</div>
         <div class="categories-list">
-          ${categories
-            .map(([cat, amount]) => {
-              const p = total ? ((amount / total) * 100).toFixed(1) : 0;
-              return `
-                <div class="category-item">
-                  <div class="category-header">
-                    <div class="category-info">
-                      <span class="category-name">${cat}</span>
-                    </div>
-                    <div class="category-amounts">
-                      <span class="category-amount">$${amount.toFixed(2)}</span>
-                      <span class="category-percent">${p}%</span>
-                    </div>
-                  </div>
-                  <div class="category-bar">
-                    <div class="category-bar-fill" style="width:${p}%"></div>
-                  </div>
-                </div>
-              `;
-            })
-            .join("")}
+          ${categories.map(c=>`
+            <div class="category-item">
+              <div class="category-header">
+                <span class="category-name">${esc(c.name)}</span>
+                <span class="category-amount">${fmtCurrency(c.value)}</span>
+                <span class="category-percent">${c.percent.toFixed(1)}%</span>
+              </div>
+              <div class="category-bar">
+                <div class="category-bar-fill" style="width:${c.percent}%"></div>
+              </div>
+            </div>
+          `).join("")}
         </div>
       </div>
     `;
   }
 
-  getEmptyState() {
-    return `
+  _empty(){
+    return`
       <div class="stats-empty">
         <svg viewBox="0 0 24 24" width="48" height="48">
           <circle cx="12" cy="12" r="10" fill="rgba(255,255,255,0.04)"/>
@@ -253,4 +164,4 @@ class StatsScreen extends HTMLElement {
   }
 }
 
-customElements.define("stats-screen", StatsScreen);
+customElements.define("stats-screen",StatsScreen);

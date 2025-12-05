@@ -1,7 +1,13 @@
 // components/settings-screen.js
-// Clean Settings screen — categories open in full-screen category-editor modal
+// Readable, refactored SettingsScreen
+// - Internal CategoryManager class (kept inside this file per your choice C)
+// - Uses toast.js for notifications
+// - Uses backup-utils.js for import/export
+// - Uses DB (Dexie) functions and StateModule for app state
+// - Keeps theme logic inside this component
 
 import { EventBus } from "../js/event-bus.js";
+import StateModule from "../js/state.js";
 import {
   initDB,
   wipeAll,
@@ -15,7 +21,9 @@ import {
   DBStatus
 } from "../js/db.js";
 
-import StateModule from "../js/state.js";
+import { esc } from "../js/utils.js";
+import { showToast } from "../js/toast.js";
+import { exportBackup, importBackup } from "../js/backup-utils.js";
 import { DEFAULT_CATEGORIES } from "../js/default-categories.js";
 
 const THEMES = [
@@ -33,22 +41,151 @@ const THEMES = [
   { id: "storm", name: "Storm" }
 ];
 
-function uuid() {
-  try { return crypto.randomUUID(); }
-  catch { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function uuidFallback() {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  }
 }
 
+/* ===========================
+   Internal CategoryManager
+   - Keeps category list operations encapsulated
+   - Uses DB.* functions to persist
+   =========================== */
+class CategoryManager {
+  constructor(hostComponent) {
+    this.host = hostComponent;
+    this._categories = [];
+  }
+
+  async load() {
+    const rows = await getAllCategories();
+    this._categories = (rows || []).map(c => ({
+      id: c.id,
+      name: c.name,
+      emoji: c.emoji || "🏷️",
+      image: c.image || "",
+      subcategories: c.subcategories || []
+    }));
+    this.render();
+  }
+
+  getAll() {
+    return this._categories;
+  }
+
+  async ensureSeed(defaults = DEFAULT_CATEGORIES) {
+    const exists = (await getAllCategories()).length;
+    if (exists) return;
+    for (const cat of defaults) {
+      await addCategory({
+        id: uuidFallback(),
+        name: cat.name,
+        emoji: cat.emoji || "🏷️",
+        image: cat.image || "",
+        subcategories: (cat.subcategories || []).map(s => ({ name: s.name || s }))
+      });
+    }
+    await this.load();
+  }
+
+  render() {
+    const cont = this.host.querySelector("#cat-mgr");
+    if (!cont) return;
+    cont.innerHTML = "";
+
+    if (!this._categories.length) {
+      cont.innerHTML = `<div class="empty">No categories</div>`;
+      return;
+    }
+
+    this._categories.forEach((c) => {
+      const row = document.createElement("div");
+      row.className = "cat-row";
+      row.tabIndex = 0;
+
+      const subPreview = c.subcategories.slice(0, 3).map(s => s.name).join(", ");
+      const more = c.subcategories.length > 3 ? "…" : "";
+
+      row.innerHTML = `
+        <div class="cat-main" data-id="${esc(c.id)}">
+          <div class="emoji-btn">${c.image ? `<img src="${esc(c.image)}" class="cat-list-image" alt="${esc(c.name)}"/>` : esc(c.emoji)}</div>
+          <div class="cat-info">
+            <div class="cat-name">${esc(c.name)}</div>
+            <div class="cat-subtext">${esc(subPreview)}${more}</div>
+          </div>
+        </div>
+      `;
+
+      // click & keyboard enter open editor
+      row.addEventListener("click", () => this.openEditor(c));
+      row.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" || ev.key === " ") this.openEditor(c);
+      });
+
+      cont.appendChild(row);
+    });
+  }
+
+  async openEditor(category) {
+    // Create category-editor component and pass the category
+    const modal = document.createElement("category-editor");
+    document.body.appendChild(modal);
+    // Defer load to next paint to ensure component attached
+    requestAnimationFrame(() => modal.load(category));
+    // When editor emits update events, we'll refresh via EventBus listeners in SettingsScreen
+  }
+}
+
+/* ===========================
+   SettingsScreen web component
+   =========================== */
 class SettingsScreen extends HTMLElement {
   constructor() {
     super();
-    this._categories = [];
+    this.catMgr = new CategoryManager(this);
     this._toastTimer = null;
+
+    // Bind handlers
+    this._onCategoryUpdated = this._onCategoryUpdated.bind(this);
+    this._onCategoryDeleted = this._onCategoryDeleted.bind(this);
   }
 
   connectedCallback() {
+    this.render();
+    this._bind();
+    this._init();
+
+    EventBus.on("category-updated", this._onCategoryUpdated);
+    EventBus.on("category-deleted", this._onCategoryDeleted);
+  }
+
+  disconnectedCallback() {
+    EventBus.off("category-updated", this._onCategoryUpdated);
+    EventBus.off("category-deleted", this._onCategoryDeleted);
+  }
+
+  /* ----------------- INIT ----------------- */
+  async _init() {
+    // Ensure DB ready
+    if (getDBStatus() !== DBStatus.READY) await initDB();
+
+    // Ensure default categories exist
+    await this.catMgr.ensureSeed();
+
+    // Load categories into manager and render
+    await this.catMgr.load();
+
+    // Render theme gallery state
+    this._renderThemeGallery();
+  }
+
+  /* ----------------- RENDER ----------------- */
+  render() {
     this.innerHTML = `
       <div class="settings-content">
-
         <div class="settings-header">
           <h1 class="title">Settings</h1>
           <div class="meta">Manage categories, themes, backup & security</div>
@@ -149,106 +286,67 @@ class SettingsScreen extends HTMLElement {
 
       <div id="settings-toast" class="settings-toast"></div>
     `;
-
-    this._bind();
-    this._init();
-
-    EventBus.on("category-updated", () => this._loadCategories());
-    EventBus.on("category-deleted", () => this._loadCategories());
   }
 
-  /* ---------------- INIT ---------------- */
-  async _init() {
-    if (getDBStatus() !== DBStatus.READY) await initDB();
-    await this._ensureSeed();
-    await this._loadCategories();
-    this._renderThemeGallery();
-  }
+  /* ----------------- BIND ----------------- */
+  _bind() {
+    const $ = (s) => this.querySelector(s);
 
-  async _ensureSeed() {
-    const cats = await getAllCategories();
-    if (!cats.length) {
-      for (const cat of DEFAULT_CATEGORIES) {
-        await addCategory({
-          id: uuid(),
-          name: cat.name,
-          emoji: cat.emoji || "🏷️",
-          image: cat.image || "",
-          subcategories: (cat.subcategories || []).map(s => ({ name: s.name || s }))
-        });
+    $("#btn-export")?.addEventListener("click", async () => {
+      try {
+        // Use shared backup util
+        const data = await exportBackup();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "spendrill-backup.json";
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast("Exported");
+      } catch (err) {
+        console.error("Export failed", err);
+        showToast("Export failed");
       }
-    }
-  }
-
-  /* ---------------- CATEGORY LIST ---------------- */
-  _renderCategories() {
-    const cont = this.querySelector("#cat-mgr");
-    cont.innerHTML = "";
-
-    if (!this._categories.length) {
-      cont.innerHTML = `<div class="empty">No categories</div>`;
-      return;
-    }
-
-    this._categories.forEach((c) => {
-      const row = document.createElement("div");
-      row.className = "cat-row";
-
-      const subPreview = c.subcategories.slice(0, 3).map(s => s.name).join(", ");
-      const more = c.subcategories.length > 3 ? "…" : "";
-
-      row.innerHTML = `
-  <div class="cat-main" data-id="${c.id}">
-    <div class="emoji-btn">
-      ${c.image ? `<img src="${this._esc(c.image)}" class="cat-list-image" alt="${this._esc(c.name)}" />` : this._esc(c.emoji)}
-    </div>
-    <div class="cat-info">
-      <div class="cat-name">${this._esc(c.name)}</div>
-      <div class="cat-subtext">${this._esc(subPreview)}${more}</div>
-    </div>
-  </div>
-`;
-
-      row.addEventListener("click", () => this._openEditor(c));
-
-      cont.appendChild(row);
     });
-  }
 
-
-  /* ---------------- OPEN EDITOR (FIXED!!) ---------------- */
-  /* ---------------- Open Fullscreen Editor ---------------- */
-  _openEditor(cat) {
-    const modal = document.createElement("category-editor");
-    document.body.appendChild(modal);
-
-    // 🔥 CRITICAL FIX — ensure load() runs AFTER DOM attachment + paint
-    requestAnimationFrame(() => {
-      modal.load(cat);
+    const fileImport = $("#file-import");
+    fileImport?.addEventListener("change", async (evt) => {
+      const file = evt.target.files[0];
+      if (!file) return;
+      try {
+        // importBackup handles parsing and DB writes
+        const replace = confirm("Replace existing data? OK = Replace, Cancel = Merge");
+        await importBackup(file, replace);
+        await this.catMgr.load();
+        showToast("Imported");
+      } catch (err) {
+        console.error("Import failed", err);
+        showToast("Import failed");
+      } finally {
+        fileImport.value = "";
+      }
     });
-  }
 
-  /* Add category = open empty editor */
-  _addCategory() {
-    const modal = document.createElement("category-editor");
-    document.body.appendChild(modal);
-
-    const emptyCat = {
-      id: crypto.randomUUID?.() || String(Date.now()),
-      name: "",
-      emoji: "🏷️",
-      image: "",
-      subcategories: []
-    };
-
-    // 🔥 Same fix for new category
-    requestAnimationFrame(() => {
-      modal.load(emptyCat);
+    $("#btn-reset-all")?.addEventListener("click", async () => {
+      if (!confirm("⚠ Delete ALL data?")) return;
+      try {
+        await wipeAll();
+        await this.catMgr.load();
+        showToast("Data cleared");
+      } catch (err) {
+        console.error("Reset failed", err);
+        showToast("Reset failed");
+      }
     });
+
+    $("#btn-add-cat")?.addEventListener("click", () => this._addCategory());
+
+    $("#btn-change-pin")?.addEventListener("click", () => EventBus.emit("request-change-pin"));
+    $("#btn-toggle-bio")?.addEventListener("click", () => EventBus.emit("toggle-biometric"));
   }
 
-
-  /* ---------------- THEMES ---------------- */
+  /* ----------------- THEMES ----------------- */
   _renderThemeGallery() {
     const root = this.querySelector("#themeGallery");
     const current = document.documentElement.getAttribute("data-theme") || "midnight";
@@ -256,7 +354,7 @@ class SettingsScreen extends HTMLElement {
     root.innerHTML = THEMES.map(t => `
       <button class="theme-card" data-theme="${t.id}">
         <div class="theme-preview" data-theme="${t.id}"></div>
-        <div class="theme-label">${t.name}</div>
+        <div class="theme-label">${esc(t.name)}</div>
         <div class="theme-check">${t.id === current ? "✓" : ""}</div>
       </button>
     `).join("");
@@ -270,86 +368,29 @@ class SettingsScreen extends HTMLElement {
     document.documentElement.setAttribute("data-theme", id);
     await StateModule.saveSetting("theme", id);
     this._renderThemeGallery();
-    this._showToast("Theme applied");
+    showToast("Theme applied");
     EventBus.emit("theme-change", { theme: id });
   }
 
-  /* ---------------- BACKUP / RESET ---------------- */
-  _bind() {
-    const $ = s => this.querySelector(s);
-
-    $("#btn-export")?.addEventListener("click", async () => {
-      try {
-        const data = await exportData();
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "spendrill-backup.json";
-        a.click();
-        URL.revokeObjectURL(url);
-        this._showToast("Exported");
-      } catch {
-        this._showToast("Export failed");
-      }
-    });
-
-    const fileImport = $("#file-import");
-    fileImport?.addEventListener("change", async (evt) => {
-      const file = evt.target.files[0];
-      if (!file) return;
-      try {
-        const txt = await file.text();
-        const data = JSON.parse(txt);
-        const replace = confirm("Replace existing data? OK = Replace, Cancel = Merge");
-        await importData(data, replace);
-        await this._loadCategories();
-        this._showToast("Imported");
-      } catch {
-        this._showToast("Import failed");
-      } finally {
-        fileImport.value = "";
-      }
-    });
-
-    $("#btn-reset-all")?.addEventListener("click", async () => {
-      if (!confirm("⚠ Delete ALL data?")) return;
-      await wipeAll();
-      this._categories = [];
-      this._renderCategories();
-      this._showToast("Data cleared");
-    });
-
-    $("#btn-add-cat")?.addEventListener("click", () => this._addCategory());
-
-    $("#btn-change-pin")?.addEventListener("click", () => EventBus.emit("request-change-pin"));
-    $("#btn-toggle-bio")?.addEventListener("click", () => EventBus.emit("toggle-biometric"));
+  /* ----------------- CATEGORY HELPERS ----------------- */
+  _addCategory() {
+    const emptyCat = {
+      id: uuidFallback(),
+      name: "",
+      emoji: "🏷️",
+      image: "",
+      subcategories: []
+    };
+    this.catMgr.openEditor(emptyCat);
   }
 
-  /* ---------------- HELPERS ---------------- */
-  _esc(s) {
-    return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  /* ----------------- EVENT HANDLERS ----------------- */
+  async _onCategoryUpdated() {
+    await this.catMgr.load();
   }
 
-  _showToast(msg) {
-    const t = this.querySelector("#settings-toast");
-    if (!t) return;
-    t.textContent = msg;
-    t.classList.add("show");
-    clearTimeout(this._toastTimer);
-    this._toastTimer = setTimeout(() => t.classList.remove("show"), 1300);
-  }
-
-  async _loadCategories() {
-    const cats = await getAllCategories();
-    this._categories = cats.map(c => ({
-      id: c.id,
-      name: c.name,
-      emoji: c.emoji || "🏷️",
-      image: c.image || "",
-      subcategories: c.subcategories || []
-    }));
-    this._renderCategories();
+  async _onCategoryDeleted() {
+    await this.catMgr.load();
   }
 }
 

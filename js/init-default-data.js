@@ -1,11 +1,12 @@
 // /js/init-default-data.js
+
 import * as DB from "./db.js";
-import { uuidv4 } from "./utils.js";
+import { uuid } from "./utils.js";
 import { DEFAULT_CATEGORIES } from "./default-categories.js";
 
 export const SAMPLE_TRANSACTIONS = [
-  { amount: 120, catId: "food_dining", subId: "restaurants_cafes", note: "Dinner with friends", date: "2025-12-28" },
-  { amount: 45, catId: "transportation", subId: "cab", note: "Uber to office", date: "2025-12-27" },
+  { amount: 120, catId: "food_dining", subId: "restaurants_cafes", note: "", date: "2025-12-28" },
+  { amount: 45, catId: "transportation", subId: "cab", note: "", date: "2025-12-27" },
   { amount: 780, catId: "shopping", subId: "electronics_gadgets", note: "New earphones", date: "2025-12-25" },
   { amount: 2300, catId: "bills_utilities", subId: "electricity_bill", note: "Electricity bill", date: "2025-12-20" },
   { amount: 90, catId: "food_dining", subId: "tea_coffee_snacks", note: "Starbucks", date: "2025-12-24" },
@@ -18,13 +19,9 @@ export const SAMPLE_TRANSACTIONS = [
   { amount: 1600, catId: "shopping", subId: "clothing", note: "New shirt", date: "2025-12-18" }
 ];
 
-
-
-
-
 export async function initDefaultData() {
-  const first = await DB.getSetting("sampleDataLoaded", false);
-  if (first) return;
+  const already = await DB.getSetting("sampleDataLoaded", false);
+  if (already) return;
 
   console.log("🔹 First boot → Loading SAMPLE transactions only");
 
@@ -34,7 +31,7 @@ export async function initDefaultData() {
     if (!cat || !sub) continue;
 
     await DB.addTransaction({
-      id: uuidv4(),
+      id: uuid(),
       ...tx
     });
   }
