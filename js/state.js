@@ -54,18 +54,23 @@ const StateModule = {
   // ------------------------
   async loadSnapshot() {
     try {
-      if (DB.getDBStatus() !== DB.DBStatus.READY) {
-        await DB.initDB();
+      await DB.initDB();
+
+      // Load categories FIRST
+      const categories = await DB.getAllCategories();
+      if (!categories.length) {
+        console.warn("⚠ No categories found. DB corruption?");
+        await db.delete();
+        location.reload();
       }
 
-      const [transactions, categories, settings] = await Promise.all([
+      const [transactions, settings] = await Promise.all([
         DB.getAllTransactions(),
-        DB.getAllCategories(),
         DB.getAllSettings()
       ]);
 
       const settingsObj = {};
-      for (const row of settings) settingsObj[row.key] = row.value;
+      for (const s of settings) settingsObj[s.key] = s.value;
 
       const catMap = new Map(categories.map(c => [c.id, c]));
 
@@ -73,21 +78,15 @@ const StateModule = {
         .map(tx => enrichTransaction(tx, catMap))
         .sort((a, b) => b.date.localeCompare(a.date));
 
-      _state = {
-        transactions: enriched,
-        categories,
-        settings: settingsObj,
-        pinHash: settingsObj.pinHash || null
-      };
+      _state = { transactions: enriched, categories, settings: settingsObj };
 
-      console.log(`✅ Loaded ${enriched.length} transactions`);
       return _state;
+
     } catch (err) {
-      console.error("❌ Failed to load snapshot:", err);
+      console.error("❌ Snapshot failed:", err);
       return _state;
     }
   },
-
   // ------------------------
   // LOAD ONLY CURRENT MONTH
   // ------------------------

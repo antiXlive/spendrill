@@ -1,7 +1,7 @@
 // /js/init-default-data.js
-import { DEFAULT_CATEGORIES } from "./default-categories.js";
 import * as DB from "./db.js";
 import { uuidv4 } from "./utils.js";
+import { DEFAULT_CATEGORIES } from "./default-categories.js";
 
 export const SAMPLE_TRANSACTIONS = [
   { amount: 120, catId: "food_dining", subId: "restaurants_cafes", note: "Dinner with friends", date: "2025-12-28" },
@@ -18,43 +18,27 @@ export const SAMPLE_TRANSACTIONS = [
   { amount: 1600, catId: "shopping", subId: "clothing", note: "New shirt", date: "2025-12-18" }
 ];
 
+
+
+
+
 export async function initDefaultData() {
-  const alreadyLoaded = await DB.getSetting("firstBootDone", false);
-  if (alreadyLoaded) {
-    console.log("⏭ firstBootDone detected — defaults NOT reloaded.");
-    return;
-  }
+  const first = await DB.getSetting("sampleDataLoaded", false);
+  if (first) return;
 
-  console.log("🔹 First boot → Loading default categories + sample transactions");
+  console.log("🔹 First boot → Loading SAMPLE transactions only");
 
-  // Insert categories + subs
-  for (const cat of DEFAULT_CATEGORIES) {
-    await DB.addCategoryWithSubs(cat);
-  }
-
-  // Insert sample transactions (safe insert)
   for (const tx of SAMPLE_TRANSACTIONS) {
-    const categoryExists = DEFAULT_CATEGORIES.some(c => c.id === tx.catId);
-    const subExists = DEFAULT_CATEGORIES
-      .find(c => c.id === tx.catId)
-      ?.subcategories.some(s => s.id === tx.subId);
-
-    if (!categoryExists || !subExists) {
-      console.warn(`⚠️ Skipped invalid sample transaction →`, tx);
-      continue;
-    }
+    const cat = DEFAULT_CATEGORIES.find(c => c.id === tx.catId);
+    const sub = cat?.subcategories.find(s => s.id === tx.subId);
+    if (!cat || !sub) continue;
 
     await DB.addTransaction({
       id: uuidv4(),
-      amount: tx.amount,
-      date: tx.date,
-      catId: tx.catId,
-      subId: tx.subId,
-      createdAt: new Date().toISOString(),
-      note: tx.note || "",
+      ...tx
     });
   }
 
-  await DB.saveSetting("firstBootDone", true);
-  console.log("✅ Default categories + sample transactions loaded ONCE");
+  await DB.saveSetting("sampleDataLoaded", true);
+  console.log("✅ Sample transactions loaded once");
 }
