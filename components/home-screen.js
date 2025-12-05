@@ -1,5 +1,5 @@
 // /components/home-screen.js
-// Home Screen — refined spacing, proper icon/image ratio, responsive fonts, minus amounts in red.
+// Home Screen — refined spacing, proper icon/image ratio, improved spacing.
 
 import { EventBus } from "../js/event-bus.js";
 import {
@@ -153,7 +153,7 @@ class HomeScreen extends HTMLElement {
       header.className = "day-header";
       header.innerHTML = `
         <span class="day-label">${esc(g.label)}</span>
-        <span class="day-total">${fmtCurrency(g.total)}</span>
+        <span class="day-total">Σ - ${fmtCurrency(g.total)}</span>
       `;
       daysList.appendChild(header);
 
@@ -165,7 +165,7 @@ class HomeScreen extends HTMLElement {
   }
 
   _txHTML(t) {
-    const icon = resolveIcon(t); // returns emoji HTML or <img ...>
+    const icon = resolveIcon(t);
 
     const amount = Number(t.amount || 0);
     const formatted = fmtCurrency(Math.abs(amount));
@@ -174,16 +174,13 @@ class HomeScreen extends HTMLElement {
     const secondary = (t.subName && t.catName) ? t.catName : "";
     const note = t.note || "";
 
-    // Show minus sign for ALL amounts, and mark them as negative for red styling
     const displayAmount = `-${formatted}`;
 
     return `
       <div class="tx-item" data-action="open-tx" data-id="${esc(t.id)}">
 
         <div class="tx-left">
-          <div class="tx-icon-circle">
-            <div class="tx-emoji">${icon}</div>
-          </div>
+          <div class="tx-emoji">${icon}</div>
 
           <div class="tx-text">
             <div class="tx-line1">

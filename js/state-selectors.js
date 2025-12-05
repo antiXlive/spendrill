@@ -56,3 +56,41 @@ export function computeStats(txList){
   const dataset=arr.map(([name,value])=>({name,value,percent:total?((value/total)*100):0}));
   return {total,average,topCategory:topCat,categories:dataset};
 }
+// ---------------------------------------------
+// Computes subcategory breakdown for a category
+// ---------------------------------------------
+export function computeSubStats(categoryName, txList) {
+  if (!txList || !Array.isArray(txList)) {
+    console.warn("computeSubStats: txList missing");
+    return { subs: [], total: 0 };
+  }
+
+  const norm = (categoryName || "").trim().toLowerCase();
+
+  const filtered = txList.filter(tx =>
+    (tx.catName || "").trim().toLowerCase() === norm
+  );
+
+  if (!filtered.length)
+    return { subs: [], total: 0 };
+
+  const map = new Map();
+  let total = 0;
+
+  for (const tx of filtered) {
+    const sub = (tx.subName || "Other").trim();
+    const amt = Number(tx.amount || 0);
+    map.set(sub, (map.get(sub) || 0) + amt);
+    total += amt;
+  }
+
+  const subs = Array.from(map.entries()).map(([name, value]) => ({
+    name,
+    value,
+    percent: total ? (value / total) * 100 : 0
+  }));
+
+  subs.sort((a, b) => b.value - a.value);
+
+  return { subs, total };
+}
