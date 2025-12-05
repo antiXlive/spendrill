@@ -1,6 +1,5 @@
 // components/settings-screen.js
-// Clean Settings screen — now categories open in category-editor modal
-// No inline editing. No subpanels. Full modern UX.
+// Clean Settings screen — categories open in full-screen category-editor modal
 
 import { EventBus } from "../js/event-bus.js";
 import {
@@ -15,6 +14,7 @@ import {
   getDBStatus,
   DBStatus
 } from "../js/db.js";
+
 import StateModule from "../js/state.js";
 import { DEFAULT_CATEGORIES } from "../js/default-categories.js";
 
@@ -30,7 +30,7 @@ const THEMES = [
   { id: "tealglass", name: "Teal Glass" },
   { id: "onyx", name: "Onyx" },
   { id: "crimsonnight", name: "Crimson Night" },
-  { id: "storm", name: "Storm" },
+  { id: "storm", name: "Storm" }
 ];
 
 function uuid() {
@@ -74,7 +74,7 @@ class SettingsScreen extends HTMLElement {
             <div class="card-row">
               <div class="row-info">
                 <div class="row-title">Biometric Unlock</div>
-                <div class="row-sub">Use fingerprint/face unlock</div>
+                <div class="row-sub">Use fingerprint or face unlock</div>
               </div>
               <div class="row-actions">
                 <button id="btn-toggle-bio" class="btn btn-ghost">Toggle</button>
@@ -107,7 +107,7 @@ class SettingsScreen extends HTMLElement {
             <div class="card-row">
               <div class="row-info">
                 <div class="row-title">Import Data</div>
-                <div class="row-sub">Restore from JSON file</div>
+                <div class="row-sub">Restore from a JSON backup</div>
               </div>
               <div class="row-actions import-wrap">
                 <input id="file-import" type="file" accept="application/json" />
@@ -117,7 +117,7 @@ class SettingsScreen extends HTMLElement {
             <div class="card-row border-top">
               <div class="row-info">
                 <div class="row-title">Reset All</div>
-                <div class="row-sub">Deletes EVERYTHING</div>
+                <div class="row-sub">Delete all categories, transactions & settings</div>
               </div>
               <div class="row-actions">
                 <button id="btn-reset-all" class="btn btn-danger">Reset</button>
@@ -153,12 +153,11 @@ class SettingsScreen extends HTMLElement {
     this._bind();
     this._init();
 
-    // external updates (after modal saves)
     EventBus.on("category-updated", () => this._loadCategories());
     EventBus.on("category-deleted", () => this._loadCategories());
   }
 
-  /* ---------------- Initialization ---------------- */
+  /* ---------------- INIT ---------------- */
   async _init() {
     if (getDBStatus() !== DBStatus.READY) await initDB();
     await this._ensureSeed();
@@ -181,7 +180,7 @@ class SettingsScreen extends HTMLElement {
     }
   }
 
-  /* ---------------- Category Rendering ---------------- */
+  /* ---------------- CATEGORY LIST ---------------- */
   _renderCategories() {
     const cont = this.querySelector("#cat-mgr");
     cont.innerHTML = "";
@@ -199,14 +198,16 @@ class SettingsScreen extends HTMLElement {
       const more = c.subcategories.length > 3 ? "…" : "";
 
       row.innerHTML = `
-        <div class="cat-main" data-id="${c.id}">
-          <div class="emoji-btn">${this._esc(c.emoji)}</div>
-          <div class="cat-info">
-            <div class="cat-name">${this._esc(c.name)}</div>
-            <div class="cat-subtext">${this._esc(subPreview)}${more}</div>
-          </div>
-        </div>
-      `;
+  <div class="cat-main" data-id="${c.id}">
+    <div class="emoji-btn">
+      ${c.image ? `<img src="${this._esc(c.image)}" class="cat-list-image" alt="${this._esc(c.name)}" />` : this._esc(c.emoji)}
+    </div>
+    <div class="cat-info">
+      <div class="cat-name">${this._esc(c.name)}</div>
+      <div class="cat-subtext">${this._esc(subPreview)}${more}</div>
+    </div>
+  </div>
+`;
 
       row.addEventListener("click", () => this._openEditor(c));
 
@@ -214,26 +215,40 @@ class SettingsScreen extends HTMLElement {
     });
   }
 
+
+  /* ---------------- OPEN EDITOR (FIXED!!) ---------------- */
   /* ---------------- Open Fullscreen Editor ---------------- */
   _openEditor(cat) {
     const modal = document.createElement("category-editor");
     document.body.appendChild(modal);
-    modal.load(cat);
+
+    // 🔥 CRITICAL FIX — ensure load() runs AFTER DOM attachment + paint
+    requestAnimationFrame(() => {
+      modal.load(cat);
+    });
   }
 
   /* Add category = open empty editor */
   _addCategory() {
     const modal = document.createElement("category-editor");
     document.body.appendChild(modal);
-    modal.load({
-      id: uuid(),
+
+    const emptyCat = {
+      id: crypto.randomUUID?.() || String(Date.now()),
       name: "",
       emoji: "🏷️",
+      image: "",
       subcategories: []
+    };
+
+    // 🔥 Same fix for new category
+    requestAnimationFrame(() => {
+      modal.load(emptyCat);
     });
   }
 
-  /* ---------------- Theme Gallery ---------------- */
+
+  /* ---------------- THEMES ---------------- */
   _renderThemeGallery() {
     const root = this.querySelector("#themeGallery");
     const current = document.documentElement.getAttribute("data-theme") || "midnight";
@@ -259,7 +274,7 @@ class SettingsScreen extends HTMLElement {
     EventBus.emit("theme-change", { theme: id });
   }
 
-  /* ---------------- Import / Export / Reset ---------------- */
+  /* ---------------- BACKUP / RESET ---------------- */
   _bind() {
     const $ = s => this.querySelector(s);
 
@@ -311,7 +326,11 @@ class SettingsScreen extends HTMLElement {
     $("#btn-toggle-bio")?.addEventListener("click", () => EventBus.emit("toggle-biometric"));
   }
 
-  /* ---------------- Utilities ---------------- */
+  /* ---------------- HELPERS ---------------- */
+  _esc(s) {
+    return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  }
+
   _showToast(msg) {
     const t = this.querySelector("#settings-toast");
     if (!t) return;
@@ -321,16 +340,13 @@ class SettingsScreen extends HTMLElement {
     this._toastTimer = setTimeout(() => t.classList.remove("show"), 1300);
   }
 
-  _esc(s) {
-    return String(s).replace(/[&<>]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;" }[c]));
-  }
-
   async _loadCategories() {
     const cats = await getAllCategories();
     this._categories = cats.map(c => ({
       id: c.id,
       name: c.name,
       emoji: c.emoji || "🏷️",
+      image: c.image || "",
       subcategories: c.subcategories || []
     }));
     this._renderCategories();

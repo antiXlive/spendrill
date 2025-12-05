@@ -17,6 +17,7 @@ import "../components/ai-screen.js";
 import "../components/stats-screen.js";
 import "../components/settings-screen.js";
 import "../components/entry-sheet.js";
+import "../components/category-editor.js";
 
 window.__STATE__ = null;
 window.__LATEST_STATS__ = null;

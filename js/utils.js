@@ -31,3 +31,13 @@ export function slugify(str = "") {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
 }
+// js/utils.js (append or merge)
+export function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) return resolve(null);
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
