@@ -1,5 +1,5 @@
 // components/home-screen.js
-// Full fixed version — works with new StateModule.loadSnapshot()
+// Full fixed version — WITH category/subcategory image-emoji fallback
 // No Shadow DOM. External CSS loaded from ../css/home-screen.css
 
 import { EventBus } from "../js/event-bus.js";
@@ -8,7 +8,6 @@ import StateModule from "../js/state.js";
 class HomeScreen extends HTMLElement {
   constructor() {
     super();
-
     this.current = new Date();
     this.tx = [];
     this.grouped = [];
@@ -17,17 +16,13 @@ class HomeScreen extends HTMLElement {
     this._longPressTimer = null;
     this._onScrollBound = null;
     this._currentYearMonth = null;
-
     this.render();
   }
 
   connectedCallback() {
     this._bind();
-
-    // initial load
     this._loadMonth(this.current.getFullYear(), this.current.getMonth());
 
-    // auto-refresh on state changes
     this._stateChangedHandler = () => {
       this._loadMonth(this.current.getFullYear(), this.current.getMonth());
     };
@@ -45,14 +40,12 @@ class HomeScreen extends HTMLElement {
       EventBus.off("stats-ready", this._stateChangedHandler);
     } catch {}
 
-    if (this._onScrollBound) {
-      this.removeEventListener("scroll", this._onScrollBound);
-    }
+    if (this._onScrollBound) this.removeEventListener("scroll", this._onScrollBound);
     if (this._longPressTimer) clearTimeout(this._longPressTimer);
   }
 
   /* --------------------------
-     Currency util
+      UTIL
   --------------------------- */
   _fmtCurrency(n) {
     try {
@@ -66,9 +59,7 @@ class HomeScreen extends HTMLElement {
     }
   }
 
-  _dateKey(iso) {
-    return iso.slice(0, 10);
-  }
+  _dateKey(iso) { return iso.slice(0, 10); }
 
   _labelFromKey(key) {
     const date = new Date(key);
@@ -76,41 +67,49 @@ class HomeScreen extends HTMLElement {
     const yest = new Date();
     yest.setDate(today.getDate() - 1);
 
-    today.setHours(0, 0, 0, 0);
-    yest.setHours(0, 0, 0, 0);
-    date.setHours(0, 0, 0, 0);
+    today.setHours(0,0,0,0);
+    yest.setHours(0,0,0,0);
+    date.setHours(0,0,0,0);
 
     if (date.getTime() === today.getTime()) return "Today";
     if (date.getTime() === yest.getTime()) return "Yesterday";
 
-    return date
-      .toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })
-      .replace(",", "");
+    return date.toLocaleDateString(undefined,{day:"2-digit",month:"short",year:"numeric"}).replace(",", "");
   }
 
-  _esc(s = "") {
-    return String(s).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  _esc(s=""){ return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
+
+  /* --------------------------
+      NEW ICON FALLBACK LOGIC
+  --------------------------- */
+  _getTxIcon(t){
+    // subcategory first
+    if (t.subId) {
+      if (t.subImage?.trim()) return `<img src="${this._esc(t.subImage)}" class="tx-img">`;
+      if (t.subEmoji) return this._esc(t.subEmoji);
+    }
+    // then category
+    if (t.catImage?.trim()) return `<img src="${this._esc(t.catImage)}" class="tx-img">`;
+    if (t.catEmoji) return this._esc(t.catEmoji);
+    return "🧾";
   }
 
   /* --------------------------
-     LOAD MONTH (FIXED VERSION)
+      LOAD MONTH
   --------------------------- */
   async _loadMonth(y, m) {
     const ym = `${y}-${String(m + 1).padStart(2, "0")}`;
     this._currentYearMonth = ym;
 
     try {
-      // Load enriched snapshot with catName, subName, emoji
       const snapshot = await StateModule.loadSnapshot();
       const all = snapshot.transactions || [];
+      const txs = all.filter(t => t.date && t.date.startsWith(ym));
 
-      // filter transactions for this month
-      const txs = all.filter((t) => t.date && t.date.startsWith(ym));
-
-      this.tx = txs.sort((a, b) => new Date(b.date) - new Date(a.date));
+      this.tx = txs.sort((a,b) => new Date(b.date)-new Date(a.date));
       this._groupByDate();
       this._render();
-    } catch (err) {
+    } catch (err){
       console.error("HomeScreen _loadMonth failed:", err);
       this.tx = [];
       this.grouped = [];
@@ -118,159 +117,146 @@ class HomeScreen extends HTMLElement {
     }
   }
 
-  _groupByDate() {
+  _groupByDate(){
     const map = new Map();
-
     for (const t of this.tx) {
       const k = this._dateKey(t.date);
-      if (!map.has(k)) map.set(k, { dateKey: k, items: [], total: 0 });
-
+      if (!map.has(k)) map.set(k,{dateKey:k,items:[],total:0});
       const g = map.get(k);
       g.items.push(t);
-      g.total += Number(t.amount || 0);
+      g.total += Number(t.amount||0);
     }
-
     this.grouped = [...map.values()]
-      .sort((a, b) => new Date(b.dateKey) - new Date(a.dateKey))
-      .map((g) => ({ ...g, label: this._labelFromKey(g.dateKey) }));
+      .sort((a,b)=>new Date(b.dateKey)-new Date(a.dateKey))
+      .map(g => ({...g, label:this._labelFromKey(g.dateKey)}));
   }
 
   /* --------------------------
-     BIND EVENTS
+      TOUCH & EVENTS
   --------------------------- */
-  _bind() {
-    this.addEventListener("touchstart", (e) => this._onTouchStart(e), { passive: true });
-    this.addEventListener("touchmove", (e) => this._onTouchMove(e), { passive: true });
-    this.addEventListener("touchend", () => this._onTouchEnd(), { passive: true });
+  _bind(){
+    this.addEventListener("touchstart",(e)=>this._onTouchStart(e),{passive:true});
+    this.addEventListener("touchmove",(e)=>this._onTouchMove(e),{passive:true});
+    this.addEventListener("touchend",()=>this._onTouchEnd(),{passive:true});
 
-    this.addEventListener("click", (e) => {
+    this.addEventListener("click", (e)=>{
       const el = e.target.closest("[data-action]");
-      if (!el) return;
+      if(!el) return;
       const id = el.dataset.id;
-      const tx = this.tx.find((t) => String(t.id) === String(id));
-      this._createRipple(e, el);
-      EventBus.emit("open-entry-sheet", tx || {});
+      const tx = this.tx.find(t=>String(t.id)===String(id));
+      this._createRipple(e,el);
+      EventBus.emit("open-entry-sheet", tx||{});
     });
   }
 
-  _onTouchStart(e) {
+  _onTouchStart(e){
     const t = e.touches[0];
     this._touch.start = t.clientX;
     this._touch.x = t.clientX;
     this._touch.y = t.clientY;
 
     const item = e.target.closest(".tx-item");
-    if (item && item.dataset.id) this._setupLongPress(item);
+    if (item?.dataset.id) this._setupLongPress(item);
   }
 
-  _onTouchMove(e) {
+  _onTouchMove(e){
     const t = e.touches[0];
     const dx = Math.abs(t.clientX - this._touch.start);
     const dy = Math.abs(t.clientY - this._touch.y);
-
-    if (dx > 10 || dy > 10) this._cancelLongPress();
-
+    if (dx>10 || dy>10) this._cancelLongPress();
     this._touch.x = t.clientX;
     this._touch.y = t.clientY;
   }
 
-  _onTouchEnd() {
+  _onTouchEnd(){
     this._cancelLongPress();
     if (this._isAnimating) return;
-
     const dx = this._touch.x - this._touch.start;
     if (dx < -60) this._changeMonth(1);
     else if (dx > 60) this._changeMonth(-1);
   }
 
-  _changeMonth(dir) {
+  _changeMonth(dir){
     if (this._isAnimating) return;
     this._isAnimating = true;
 
-    const d = new Date(this.current.getFullYear(), this.current.getMonth() + dir, 1);
+    const d = new Date(this.current.getFullYear(), this.current.getMonth()+dir, 1);
     this.current = d;
 
     const daysList = this.querySelector("#daysList");
-    if (daysList) {
-      daysList.style.opacity = "0";
-      daysList.style.transform = `translateX(${dir * 20}px)`;
+    if (daysList){
+      daysList.style.opacity="0";
+      daysList.style.transform=`translateX(${dir*20}px)`;
     }
 
-    setTimeout(() => {
+    setTimeout(()=>{
       this._loadMonth(d.getFullYear(), d.getMonth());
-
-      setTimeout(() => {
-        if (daysList) {
-          daysList.style.transition = "all .3s ease";
-          daysList.style.opacity = "1";
-          daysList.style.transform = "translateX(0)";
+      setTimeout(()=>{
+        if(daysList){
+          daysList.style.transition="all .3s ease";
+          daysList.style.opacity="1";
+          daysList.style.transform="translateX(0)";
         }
-        setTimeout(() => {
-          if (daysList) daysList.style.transition = "";
-          this._isAnimating = false;
-        }, 300);
-      }, 50);
-    }, 150);
+        setTimeout(()=>{
+          if(daysList) daysList.style.transition="";
+          this._isAnimating=false;
+        },300);
+      },50);
+    },150);
 
-    if (navigator.vibrate) navigator.vibrate(10);
+    if(navigator.vibrate) navigator.vibrate(10);
   }
 
-  _setupLongPress(el) {
+  _setupLongPress(el){
     this._cancelLongPress();
     el.classList.add("pressing");
-
-    this._longPressTimer = setTimeout(() => {
+    this._longPressTimer = setTimeout(()=>{
       const id = el.dataset.id;
-      const tx = this.tx.find((t) => String(t.id) === String(id));
-
-      if (navigator.vibrate) navigator.vibrate(50);
-      if (tx && confirm(`Delete "${tx.note || tx.catName || tx.subName || "transaction"}"?`)) {
+      const tx = this.tx.find(t=>String(t.id)===String(id));
+      if(navigator.vibrate) navigator.vibrate(50);
+      if(tx && confirm(`Delete "${tx.note||tx.catName||tx.subName||"transaction"}"?`)){
         el.classList.add("deleting");
-        EventBus.emit("tx-delete", { id: tx.id });
+        EventBus.emit("tx-delete",{id:tx.id});
       }
-
       el.classList.remove("pressing");
-    }, 700);
+    },700);
   }
 
-  _cancelLongPress() {
-    if (this._longPressTimer) clearTimeout(this._longPressTimer);
-    this._longPressTimer = null;
-
-    this.querySelectorAll(".tx-item.pressing").forEach((el) => el.classList.remove("pressing"));
+  _cancelLongPress(){
+    if(this._longPressTimer) clearTimeout(this._longPressTimer);
+    this._longPressTimer=null;
+    this.querySelectorAll(".tx-item.pressing").forEach(el=>el.classList.remove("pressing"));
   }
 
-  _createRipple(e, el) {
+  _createRipple(e,el){
     const r = el.getBoundingClientRect();
     const ripple = document.createElement("span");
-    ripple.className = "ripple";
+    ripple.className="ripple";
     ripple.style.left = e.clientX - r.left + "px";
     ripple.style.top = e.clientY - r.top + "px";
     el.appendChild(ripple);
-    setTimeout(() => ripple.remove(), 600);
+    setTimeout(()=>ripple.remove(),600);
   }
 
-  _onScroll() {
-    const y = this.scrollTop || 0;
+  _onScroll(){
+    const y = this.scrollTop||0;
     const summary = this.querySelector(".summary");
-    if (!summary) return;
+    if(!summary) return;
 
-    const c = Math.min(y, 140);
-    const translate = c * 0.25;
-    const scale = 1 - c / 1200;
-    const opacity = 1 - Math.min(c / 400, 0.2);
+    const c = Math.min(y,140);
+    const translate = c*0.25;
+    const scale = 1 - c/1200;
+    const opacity = 1 - Math.min(c/400,0.2);
 
-    summary.style.transform = `translateY(${translate}px) scale(${scale})`;
-    summary.style.opacity = opacity;
+    summary.style.transform=`translateY(${translate}px) scale(${scale})`;
+    summary.style.opacity=opacity;
   }
 
   /* --------------------------
-     Render base DOM
-     ⚠️ NO data-screen here - it's on the element itself in HTML
+      BASE DOM
   --------------------------- */
-  render() {
+  render(){
     this.innerHTML = `
-
       <div class="home-content">
         <div class="summary">
           <div class="summary-left">
@@ -301,9 +287,9 @@ class HomeScreen extends HTMLElement {
   }
 
   /* --------------------------
-     Render dynamic month data
+      MAIN RENDER
   --------------------------- */
-  _render() {
+  _render(){
     const monthName = this.querySelector("#monthName");
     const monthTotalEl = this.querySelector("#monthTotal");
     const txCount = this.querySelector("#txCount");
@@ -312,33 +298,30 @@ class HomeScreen extends HTMLElement {
     const daysList = this.querySelector("#daysList");
     const emptyState = this.querySelector("#emptyState");
 
-    const monthLabel = this.current.toLocaleString(undefined, {
-      month: "long",
-      year: "numeric"
-    });
+    const monthLabel = this.current.toLocaleString(undefined,{month:"long",year:"numeric"});
     monthName.textContent = monthLabel;
 
-    const total = this.tx.reduce((s, t) => s + Number(t.amount || 0), 0);
+    const total = this.tx.reduce((s,t)=>s+Number(t.amount||0),0);
     monthTotalEl.textContent = this._fmtCurrency(total);
 
-    txCount.textContent = `${this.tx.length} transaction${this.tx.length !== 1 ? "s" : ""}`;
+    txCount.textContent = `${this.tx.length} transaction${this.tx.length!==1?"s":""}`;
     topCat.textContent = `Top: ${this._topCategoryText()}`;
 
-    const daily = this.grouped.map((g) => g.total).slice(0, 12).reverse();
+    const daily = this.grouped.map(g=>g.total).slice(0,12).reverse();
     miniChart.innerHTML = this._renderMiniChart(daily);
 
-    daysList.innerHTML = "";
-    if (!this.grouped.length) {
-      emptyState.style.display = "block";
+    daysList.innerHTML="";
+    if(!this.grouped.length){
+      emptyState.style.display="block";
       return;
     }
 
-    emptyState.style.display = "none";
+    emptyState.style.display="none";
 
-    for (const g of this.grouped) {
+    for(const g of this.grouped){
       const header = document.createElement("div");
-      header.className = "day-header";
-      if (g.label === "Today") header.classList.add("today");
+      header.className="day-header";
+      if(g.label==="Today") header.classList.add("today");
       header.innerHTML = `
         <span class="day-label">${this._esc(g.label)}</span>
         <span class="day-total">${this._fmtCurrency(g.total)}</span>
@@ -346,53 +329,50 @@ class HomeScreen extends HTMLElement {
       daysList.appendChild(header);
 
       const txWrapper = document.createElement("div");
-      txWrapper.className = "tx-list";
+      txWrapper.className="tx-list";
 
-      txWrapper.innerHTML = g.items
-        .map((t) => {
-          const amtClass = Number(t.amount) < 0 ? "negative" : "";
-          const emoji = t.emoji || "🧾";
-          return `
-            <div class="tx-item" data-action="open-tx" data-id="${this._esc(t.id)}" tabindex="0">
-              <div class="tx-left">
-                <div class="tx-emoji">${emoji}</div>
-                <div class="tx-meta">
-                  <div class="tx-cat">${this._esc(t.catName || "Uncategorized")}</div>
-                  ${t.subName ? `<div class="tx-subcat">${this._esc(t.subName)}</div>` : ""}
-                  ${t.note ? `<div class="tx-note">${this._esc(t.note)}</div>` : ""}
-                </div>
-              </div>
-              <div class="tx-amt ${amtClass}">
-                ${this._fmtCurrency(Number(t.amount || 0))}
+      txWrapper.innerHTML = g.items.map(t=>{
+        const amtClass = Number(t.amount)<0 ? "negative" : "";
+        const icon = this._getTxIcon(t);
+
+        return `
+          <div class="tx-item" data-action="open-tx" data-id="${this._esc(t.id)}" tabindex="0">
+            <div class="tx-left">
+              <div class="tx-emoji">${icon}</div>
+              <div class="tx-meta">
+                <div class="tx-cat">${this._esc(t.catName||"Uncategorized")}</div>
+                ${t.subName ? `<div class="tx-subcat">${this._esc(t.subName)}</div>` : ""}
+                ${t.note ? `<div class="tx-note">${this._esc(t.note)}</div>` : ""}
               </div>
             </div>
-          `;
-        })
-        .join("");
+            <div class="tx-amt ${amtClass}">
+              ${this._fmtCurrency(Number(t.amount||0))}
+            </div>
+          </div>
+        `;
+      }).join("");
 
       daysList.appendChild(txWrapper);
     }
   }
 
-  _topCategoryText() {
+  _topCategoryText(){
     const map = new Map();
-    for (const t of this.tx) {
+    for(const t of this.tx){
       const k = t.catName || "Uncategorized";
-      map.set(k, (map.get(k) || 0) + Number(t.amount || 0));
+      map.set(k,(map.get(k)||0)+Number(t.amount||0));
     }
-    const arr = [...map.entries()].sort((a, b) => b[1] - a[1]);
-    if (!arr.length) return "—";
-    const [name, val] = arr[0];
+    const arr=[...map.entries()].sort((a,b)=>b[1]-a[1]);
+    if(!arr.length) return "—";
+    const [name,val] = arr[0];
     return `${name} (${this._fmtCurrency(val)})`;
   }
 
-  _renderMiniChart(values) {
-    if (!values.length) return "";
-    const w = 160,
-      h = 60,
-      pad = 6;
-    const max = Math.max(...values, 1);
-    const step = w / values.length;
+  _renderMiniChart(values){
+    if(!values.length) return "";
+    const w=160,h=60,pad=6;
+    const max=Math.max(...values,1);
+    const step=w/values.length;
 
     let html = `
       <defs>
@@ -403,14 +383,13 @@ class HomeScreen extends HTMLElement {
       </defs>
     `;
 
-    values.forEach((v, i) => {
-      const barW = Math.max(4, Math.floor(step * 0.7));
-      const x = Math.floor(i * step) + Math.floor((step - barW) / 2);
-      const barH = Math.round((v / max) * (h - pad * 2));
-      const y = h - pad - barH;
-      html += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="4" fill="url(#chartGradient)" />`;
+    values.forEach((v,i)=>{
+      const barW=Math.max(4,Math.floor(step*0.7));
+      const x=Math.floor(i*step)+Math.floor((step-barW)/2);
+      const barH=Math.round((v/max)*(h-pad*2));
+      const y=h-pad-barH;
+      html+=`<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="4" fill="url(#chartGradient)" />`;
     });
-
     return html;
   }
 }
