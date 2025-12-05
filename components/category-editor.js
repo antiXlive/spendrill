@@ -1,6 +1,10 @@
 // components/category-editor.js
-// Fullscreen Category Editor (Improved Layout + Same Theme)
-// Emits: category-updated, category-deleted
+// FINAL version with:
+// - Clickable emoji + image boxes
+// - Placeholder image for empty slots
+// - Small X delete button for subcategories
+// - Cleaner & structured layout
+// - Full compatibility with Spendrill DB
 
 import { EventBus } from "../js/event-bus.js";
 import {
@@ -10,7 +14,14 @@ import {
   getCategoryById
 } from "../js/db.js";
 
-class CategoryEditor extends HTMLElement {
+/* Dark minimal placeholder image */
+
+const PLACEHOLDER_IMG =
+"data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iNjAiIGN5PSI2MCIgcj0iNTYiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2FhYWFhYSIgc3Ryb2tlLXdpZHRoPSI0Ii8+PHBhdGggZD0iTTYwIDQwTDkwIDgwSDMwIiBmaWxsPSJub25lIiBzdHJva2U9IiNhYWFhYWEiIHN0cm9rZS13aWR0aD0iNCIvPjxjaXJjbGUgY3g9Ijg1IiBjeT0iNTQiIHI9IjYiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2FhYWFhYSIgc3Ryb2tlLXdpZHRoPSI0Ii8+PC9zdmc+";
+
+
+
+  class CategoryEditor extends HTMLElement {
   constructor() {
     super();
     this.category = null;
@@ -25,8 +36,6 @@ class CategoryEditor extends HTMLElement {
       <div class="ce-backdrop"></div>
 
       <div class="ce-sheet">
-
-        <!-- HEADER -->
         <header class="ce-header">
           <button id="ce-cancel" class="header-btn ghost">Cancel</button>
           <div class="header-title">Edit Category</div>
@@ -37,27 +46,30 @@ class CategoryEditor extends HTMLElement {
 
           <!-- CATEGORY CARD -->
           <section class="ce-card">
-            <div class="ce-card-title">Category Details</div>
+            <div class="ce-card-title">Basic Info</div>
 
-            <div class="ce-icon-grid">
-              <button id="ce-emoji-btn" class="ce-icon-box emoji">🏷️</button>
-
-              <div class="ce-icon-box image">
-                <img id="ce-image-preview" class="ce-image" alt="" />
+            <div class="ce-icon-row">
+              
+              <!-- EMOJI SLOT -->
+              <div class="ce-icon emoji" id="ce-emoji-box">
+                <span id="ce-emoji-btn">🏷️</span>
+                <button id="ce-emoji-remove" class="ce-remove-btn" style="display:none;">✕</button>
               </div>
 
-              <div class="ce-image-controls">
+              <!-- IMAGE SLOT -->
+              <div class="ce-icon image" id="ce-image-box">
+                <img id="ce-image-preview" class="ce-image" />
+                <button id="ce-image-remove" class="ce-remove-btn" style="display:none;">✕</button>
                 <input id="ce-image-input" type="file" accept="image/*" hidden />
-                <button id="ce-image-btn" class="btn small">Change Image</button>
-                <button id="ce-image-remove" class="btn small danger">Remove</button>
               </div>
+
             </div>
 
-            <label class="ce-label">Name</label>
+            <label class="ce-label">Category Name</label>
             <input id="ce-name-input" class="ce-input" placeholder="Category name" />
           </section>
 
-          <!-- SUBCATEGORIES -->
+          <!-- SUBCATEGORY CARD -->
           <section class="ce-card">
             <div class="ce-card-title">Subcategories</div>
 
@@ -67,11 +79,12 @@ class CategoryEditor extends HTMLElement {
           </section>
 
           <!-- DELETE CATEGORY -->
-          <section>
+          <section class="ce-card danger-card">
             <button id="ce-delete-cat" class="btn danger wide" style="display:none;">
               Delete Category
             </button>
           </section>
+
         </div>
       </div>
     `;
@@ -79,9 +92,7 @@ class CategoryEditor extends HTMLElement {
     this._bind();
   }
 
-  /* ---------------------------------
-     LOAD CATEGORY INTO UI
-  ---------------------------------- */
+  /* LOAD CATEGORY --------------------------------------------------- */
   async load(cat) {
     if (!cat) return;
 
@@ -91,7 +102,7 @@ class CategoryEditor extends HTMLElement {
         const dbCat = await getCategoryById(cat.id);
         if (dbCat) full = dbCat;
       }
-    } catch (e) {}
+    } catch (_) {}
 
     this._isNew = !full || !full.id || !full.name;
 
@@ -103,92 +114,107 @@ class CategoryEditor extends HTMLElement {
       subcategories: []
     }));
 
-    this._subcache = (this.category.subcategories || []).map(s => ({ ...s }));
+    this._subcache = [...(this.category.subcategories || [])];
 
-    // Fill UI
-    this.querySelector("#ce-emoji-btn").textContent = this.category.emoji;
+    /* EMOJI */
+    this.querySelector("#ce-emoji-btn").textContent = this.category.emoji || "●";
+    this.querySelector("#ce-emoji-remove").style.display =
+      this.category.emoji ? "block" : "none";
+
+    /* CATEGORY IMAGE */
+    const preview = this.querySelector("#ce-image-preview");
+
+    if (this.category.image) {
+      preview.src = this.category.image;
+      this.querySelector("#ce-image-remove").style.display = "block";
+    } else {
+      preview.src = PLACEHOLDER_IMG;
+      this.querySelector("#ce-image-remove").style.display = "none";
+    }
+    preview.style.display = "block";
+
+    /* NAME */
     this.querySelector("#ce-name-input").value = this.category.name || "";
 
-    const imgPreview = this.querySelector("#ce-image-preview");
-    if (this.category.image) {
-      imgPreview.src = this.category.image;
-      imgPreview.style.display = "block";
-    } else {
-      imgPreview.src = "";
-      imgPreview.style.display = "none";
-    }
-
+    /* DELETE BUTTON VISIBILITY */
     this.querySelector("#ce-delete-cat").style.display =
       this._isNew ? "none" : "block";
 
     this._renderSubcategories();
 
-    requestAnimationFrame(() => {
-      this.classList.add("open");
-    });
+    requestAnimationFrame(() => this.classList.add("open"));
   }
 
-  /* ---------------------------------
-     EVENT BINDING
-  ---------------------------------- */
+  /* BIND EVENTS ----------------------------------------------------- */
   _bind() {
     const $ = sel => this.querySelector(sel);
 
-    $(".ce-backdrop").addEventListener("click", () => this._onCancel());
-    $("#ce-cancel").addEventListener("click", () => this._onCancel());
-
+    $(".ce-backdrop").addEventListener("click", () => this._close());
+    $("#ce-cancel").addEventListener("click", () => this._close());
     $("#ce-save").addEventListener("click", () => this._onSave());
 
-    // Emoji change
-    $("#ce-emoji-btn").addEventListener("click", () => {
-      const emoji = prompt("Choose emoji:", this.category.emoji);
-      if (emoji == null) return;
-      this.category.emoji = emoji.trim();
-      $("#ce-emoji-btn").textContent = this.category.emoji;
+    /* ---- CLICK EMOJI ---- */
+    $("#ce-emoji-box").addEventListener("click", e => {
+      if (e.target.id === "ce-emoji-remove") return; // avoid double trigger
+
+      const emo = prompt("Choose emoji:", this.category.emoji);
+      if (emo != null) {
+        this.category.emoji = emo.trim();
+        $("#ce-emoji-btn").textContent = emo.trim();
+        $("#ce-emoji-remove").style.display = "block";
+      }
     });
 
-    // Name input
-    $("#ce-name-input").addEventListener("input", e => {
-      this.category.name = e.target.value;
+    /* REMOVE EMOJI */
+    $("#ce-emoji-remove").addEventListener("click", e => {
+      e.stopPropagation();
+      this.category.emoji = "";
+      $("#ce-emoji-btn").textContent = "●";
+      $("#ce-emoji-remove").style.display = "none";
     });
 
-    // Image upload
-    const imgInput = $("#ce-image-input");
-    const imgPreview = $("#ce-image-preview");
+    /* ---- CLICK IMAGE BOX ---- */
+    $("#ce-image-box").addEventListener("click", e => {
+      if (e.target.id === "ce-image-remove") return;
+      $("#ce-image-input").click();
+    });
 
-    $("#ce-image-btn").addEventListener("click", () => imgInput.click());
-
-    imgInput.addEventListener("change", e => {
+    /* IMAGE INPUT */
+    $("#ce-image-input").addEventListener("change", e => {
       const file = e.target.files?.[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = () => {
         this.category.image = reader.result;
-        imgPreview.src = reader.result;
-        imgPreview.style.display = "block";
+        $("#ce-image-preview").src = reader.result;
+        $("#ce-image-remove").style.display = "block";
       };
       reader.readAsDataURL(file);
 
-      imgInput.value = "";
+      e.target.value = "";
     });
 
-    $("#ce-image-remove").addEventListener("click", () => {
-      if (!this.category.image) return;
-      if (!confirm("Remove image?")) return;
-
+    /* REMOVE CATEGORY IMAGE */
+    $("#ce-image-remove").addEventListener("click", e => {
+      e.stopPropagation();
       this.category.image = "";
-      imgPreview.src = "";
-      imgPreview.style.display = "none";
+      $("#ce-image-preview").src = PLACEHOLDER_IMG;
+      $("#ce-image-remove").style.display = "none";
     });
 
-    // Add subcategory
+    /* NAME INPUT */
+    $("#ce-name-input").addEventListener("input", e => {
+      this.category.name = e.target.value;
+    });
+
+    /* ADD SUBCATEGORY */
     $("#ce-add-sub").addEventListener("click", () => {
       const name = prompt("Subcategory name:");
       if (!name) return;
 
       this._subcache.push({
-        id: String(Date.now()) + "-" + Math.random().toString(36).slice(2),
+        id: Date.now() + "-" + Math.random().toString(36).slice(2),
         name: name.trim(),
         emoji: "",
         image: ""
@@ -197,23 +223,17 @@ class CategoryEditor extends HTMLElement {
       this._renderSubcategories();
     });
 
-    // Delete entire category
+    /* DELETE CATEGORY */
     $("#ce-delete-cat").addEventListener("click", async () => {
-      if (!confirm(`Delete category "${this.category.name}"?`)) return;
+      if (!confirm("Delete this category permanently?")) return;
 
-      try {
-        await deleteCategory(this.category.id, true);
-        EventBus.emit("category-deleted", this.category.id);
-        this._close();
-      } catch (err) {
-        alert(err.message || "Delete failed");
-      }
+      await deleteCategory(this.category.id, true);
+      EventBus.emit("category-deleted", this.category.id);
+      this._close();
     });
   }
 
-  /* ---------------------------------
-     RENDER SUBCATEGORIES
-  ---------------------------------- */
+  /* RENDER SUBCATEGORIES ------------------------------------------- */
   _renderSubcategories() {
     const list = this.querySelector("#ce-sub-list");
     list.innerHTML = "";
@@ -229,42 +249,32 @@ class CategoryEditor extends HTMLElement {
 
       row.innerHTML = `
         <div class="ce-sub-left">
-          <div class="ce-sub-emoji" data-idx="${i}">
-            ${this._escape(s.emoji || "●")}
+
+          <div class="ce-sub-emoji-box" data-idx="${i}">
+            <span>${s.emoji || "●"}</span>
+            <button class="ce-remove-btn sub-rem" data-idx="${i}" data-type="emoji" style="${s.emoji ? "" : "display:none"}">✕</button>
           </div>
 
-          <input class="ce-input ce-sub-input"
-                 data-idx="${i}"
-                 value="${this._escape(s.name || "")}">
+          <input class="ce-input ce-sub-input" data-idx="${i}" value="${s.name || ""}" />
         </div>
 
         <div class="ce-sub-right">
-          ${
-            s.image
-              ? `<img class="ce-sub-image-preview" src="${s.image}" />`
-              : ""
-          }
 
-          <button class="btn small ce-sub-emoji-btn" data-idx="${i}">
-            Emoji
-          </button>
+          <div class="ce-sub-image-box" data-idx="${i}">
+            <img src="${s.image || PLACEHOLDER_IMG}" class="ce-sub-image" />
+            <button class="ce-remove-btn sub-rem" data-type="image" data-idx="${i}" style="${s.image ? "" : "display:none"}">✕</button>
+            <input type="file" accept="image/*" class="ce-sub-img-input" hidden data-idx="${i}" />
+          </div>
 
-          <button class="btn small ce-sub-img-btn" data-idx="${i}">
-            Image
-          </button>
+          <button class="ce-sub-delete-x" data-idx="${i}">✕</button>
 
-          <button class="btn small danger ce-sub-del" data-idx="${i}">
-            Delete
-          </button>
-
-          <input class="ce-sub-img-input" type="file" accept="image/*" hidden data-idx="${i}" />
         </div>
       `;
 
       list.appendChild(row);
     });
 
-    // Bind input
+    /* NAME INPUT */
     list.querySelectorAll(".ce-sub-input").forEach(inp => {
       inp.addEventListener("input", e => {
         const idx = Number(e.target.dataset.idx);
@@ -272,38 +282,40 @@ class CategoryEditor extends HTMLElement {
       });
     });
 
-    // Emoji editing
-    list.querySelectorAll(".ce-sub-emoji-btn").forEach(btn => {
-      btn.addEventListener("click", e => {
-        const idx = Number(e.currentTarget.dataset.idx);
-        const emo = prompt("Emoji:", this._subcache[idx].emoji || "");
-        if (emo == null) return;
+    /* CLICK EMOJI */
+    list.querySelectorAll(".ce-sub-emoji-box").forEach(box => {
+      box.addEventListener("click", e => {
+        if (e.target.classList.contains("ce-remove-btn")) return;
+        const idx = Number(box.dataset.idx);
+        const emo = prompt("Emoji:", this._subcache[idx].emoji);
+        if (emo != null) {
+          this._subcache[idx].emoji = emo.trim();
+          this._renderSubcategories();
+        }
+      });
+    });
 
-        this._subcache[idx].emoji = emo.trim();
+    /* REMOVE EMOJI */
+    list.querySelectorAll('button[data-type="emoji"]').forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const idx = Number(btn.dataset.idx);
+        this._subcache[idx].emoji = "";
         this._renderSubcategories();
       });
     });
 
-    // Delete subcategory
-    list.querySelectorAll(".ce-sub-del").forEach(btn => {
-      btn.addEventListener("click", e => {
-        const idx = Number(e.currentTarget.dataset.idx);
-        if (!confirm("Delete subcategory?")) return;
-
-        this._subcache.splice(idx, 1);
-        this._renderSubcategories();
+    /* CLICK IMAGE BOX */
+    list.querySelectorAll(".ce-sub-image-box").forEach(box => {
+      box.addEventListener("click", e => {
+        if (e.target.classList.contains("ce-remove-btn")) return;
+        const idx = Number(box.dataset.idx);
+        const inp = list.querySelector(`.ce-sub-img-input[data-idx="${idx}"]`);
+        inp.click();
       });
     });
 
-    // Image upload for subcategory
-    list.querySelectorAll(".ce-sub-img-btn").forEach(btn => {
-      btn.addEventListener("click", e => {
-        const idx = Number(e.target.dataset.idx);
-        const input = list.querySelector(`.ce-sub-img-input[data-idx="${idx}"]`);
-        input.click();
-      });
-    });
-
+    /* IMAGE INPUT */
     list.querySelectorAll(".ce-sub-img-input").forEach(input => {
       input.addEventListener("change", e => {
         const idx = Number(e.target.dataset.idx);
@@ -316,28 +328,33 @@ class CategoryEditor extends HTMLElement {
           this._renderSubcategories();
         };
         reader.readAsDataURL(file);
-        input.value = "";
       });
     });
 
-    // Clicking emoji square
-    list.querySelectorAll(".ce-sub-emoji").forEach(el => {
-      el.addEventListener("click", ev => {
-        const idx = Number(ev.currentTarget.dataset.idx);
-        const emo = prompt("Emoji:", this._subcache[idx].emoji || "");
-        if (emo == null) return;
+    /* REMOVE IMAGE */
+    list.querySelectorAll('button[data-type="image"]').forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const idx = Number(btn.dataset.idx);
+        this._subcache[idx].image = "";
+        this._renderSubcategories();
+      });
+    });
 
-        this._subcache[idx].emoji = emo.trim();
+    /* DELETE SUBCATEGORY (small x) */
+    list.querySelectorAll(".ce-sub-delete-x").forEach(btn => {
+      btn.addEventListener("click", e => {
+        const idx = Number(btn.dataset.idx);
+        if (!confirm("Remove this subcategory?")) return;
+        this._subcache.splice(idx, 1);
         this._renderSubcategories();
       });
     });
   }
 
-  /* ---------------------------------
-     SAVE CATEGORY
-  ---------------------------------- */
+  /* SAVE ------------------------------------------------------------ */
   async _onSave() {
-    if (!this.category.name || !this.category.name.trim()) {
+    if (!this.category.name.trim()) {
       alert("Category name cannot be empty");
       return;
     }
@@ -347,45 +364,26 @@ class CategoryEditor extends HTMLElement {
       emoji: this.category.emoji,
       image: this.category.image || "",
       subcategories: this._subcache.map(s => ({
-        id: s.id || String(Date.now()) + "-" + Math.random().toString(36).slice(2),
+        id: s.id,
         name: s.name,
         emoji: s.emoji || "",
         image: s.image || ""
       }))
     };
 
-    try {
-      if (!this._isNew) {
-        await updateCategory(this.category.id, payload);
-      } else {
-        const id = this.category.id;
-        await addCategory({ id, ...payload });
-      }
-
-      EventBus.emit("category-updated", { id: this.category.id, ...payload });
-      this._close();
-    } catch (err) {
-      alert(err.message || "Save failed");
+    if (this._isNew) {
+      await addCategory({ id: this.category.id, ...payload });
+    } else {
+      await updateCategory(this.category.id, payload);
     }
-  }
 
-  /* ---------------------------------
-     CLOSE MODAL
-  ---------------------------------- */
-  _onCancel() {
+    EventBus.emit("category-updated", { id: this.category.id, ...payload });
     this._close();
   }
 
   _close() {
     this.classList.remove("open");
-    setTimeout(() => this.remove(), 260);
-  }
-
-  _escape(s = "") {
-    return String(s)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;");
+    setTimeout(() => this.remove(), 250);
   }
 }
 
