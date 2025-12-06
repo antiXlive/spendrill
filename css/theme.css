@@ -176,6 +176,7 @@ tab-bar {
   
   background: var(--bg-main);
   box-sizing: border-box;
+  padding-bottom: 12vh;
 }
 
 /* Router visibility */

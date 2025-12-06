@@ -63,18 +63,21 @@ export function renderDonutChart(svgEl, rawData = [], options = {}) {
     data.forEach(d => d.percent = total ? (d.value / total) * 100 : 0);
   }
 
-  const palette = [
-    "#7f8ac7",
-    "#9086a6",
-    "#77a4a2",
-    "#c1a87a",
-    "#7990d0",
-    "#a0aac8",
-    "#b48fb1",
-    "#7fb3a6",
-    "#c79fa1",
-    "#bfb982"
-  ];
+const palette = [
+  "#2F80ED",  // vivid blue
+  "#9B51E0",  // rich purple
+  "#EB5757",  // vivid red
+  "#F2C94C",  // bright gold
+  "#27AE60",  // clean bright green
+  "#56CCF2",  // sky cyan
+  "#BB6BD9",  // purple rose
+  "#F2994A",  // orange gold
+  "#6FCF97",  // mint green
+  "#FF7E67"   // coral fire
+];
+
+
+
 
   const colors = opt.colors || palette;
 
