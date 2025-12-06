@@ -1,5 +1,5 @@
 // /components/home-screen.js
-// Home Screen — refined spacing, proper icon/image ratio, improved spacing.
+// Home Screen — with async icon resolution
 
 import { EventBus } from "../js/event-bus.js";
 import {
@@ -31,14 +31,25 @@ class HomeScreen extends HTMLElement {
 
   connectedCallback() {
     this._bind();
-    this._loadMonth(this.current.getFullYear(), this.current.getMonth());
 
-    this._stateHandler = () => this._loadMonth(this.current.getFullYear(), this.current.getMonth());
+    let firstLoad = true;
+
+    this._stateHandler = () => {
+      if (firstLoad) {
+        firstLoad = false;
+        return; // ignore first automatic state-changed event
+      }
+      this._loadMonth(this.current.getFullYear(), this.current.getMonth());
+    };
+
     EventBus.on("state-changed", this._stateHandler);
-    EventBus.on("stats-ready", this._stateHandler);
+
+    // Initial load (only once)
+    this._loadMonth(this.current.getFullYear(), this.current.getMonth());
 
     enableSwipe(this, () => this._changeMonth(1), () => this._changeMonth(-1));
   }
+
 
   disconnectedCallback() {
     EventBus.off("state-changed", this._stateHandler);
@@ -49,7 +60,7 @@ class HomeScreen extends HTMLElement {
     try {
       this.tx = await getTransactionsByMonth(y, m);
       this.grouped = groupByDate(this.tx).map(g => ({ ...g, label: dateLabelFromKey(g.dateKey) }));
-      this._render();
+      await this._render();
 
       const daily = computeMiniChart(this.tx);
       const chart = this.querySelector("#miniChart");
@@ -58,7 +69,7 @@ class HomeScreen extends HTMLElement {
       console.error("HomeScreen _loadMonth failed:", err);
       this.tx = [];
       this.grouped = [];
-      this._render();
+      await this._render();
     }
   }
 
@@ -78,7 +89,7 @@ class HomeScreen extends HTMLElement {
       EventBus.emit("open-entry-sheet", tx);
     });
 
-    // Long press to delete
+    // Long press delete
     this.addEventListener("touchstart", (e) => {
       const item = e.target.closest(".tx-item");
       if (!item) return;
@@ -125,7 +136,7 @@ class HomeScreen extends HTMLElement {
     `;
   }
 
-  _render() {
+  async _render() {
     const monthLabel = this.current.toLocaleString(undefined, { month: "long", year: "numeric" });
     this.querySelector("#monthName").textContent = monthLabel;
 
@@ -159,43 +170,59 @@ class HomeScreen extends HTMLElement {
 
       const txWrapper = document.createElement("div");
       txWrapper.className = "tx-list";
-      txWrapper.innerHTML = g.items.map(t => this._txHTML(t)).join("");
       daysList.appendChild(txWrapper);
+
+      // Render transactions with async icon resolution
+      for (const t of g.items) {
+        const txElement = await this._createTxElement(t);
+        txWrapper.appendChild(txElement);
+      }
     }
   }
 
-  _txHTML(t) {
-    const icon = resolveIcon(t);
+  // Create transaction element with async icon resolution
+  async _createTxElement(t) {
+    const icon = await resolveIcon(t);
+
+    const iconHTML =
+      icon.type === "emoji"
+        ? `<div class="tx-icon-emoji">${esc(icon.value)}</div>`
+        : `<div class="tx-icon-img"><img src="${esc(icon.value)}" alt="" /></div>`;
 
     const amount = Number(t.amount || 0);
     const formatted = fmtCurrency(Math.abs(amount));
+    const displayAmount = `-${formatted}`;
 
     const main = t.subName || t.catName || "Misc";
     const secondary = (t.subName && t.catName) ? t.catName : "";
     const note = t.note || "";
 
-    const displayAmount = `-${formatted}`;
+    const div = document.createElement("div");
+    div.className = "tx-item";
+    div.dataset.action = "open-tx";
+    div.dataset.id = t.id;
 
-    return `
-      <div class="tx-item" data-action="open-tx" data-id="${esc(t.id)}">
-
-        <div class="tx-left">
-          <div class="tx-emoji">${icon}</div>
-
-          <div class="tx-text">
-            <div class="tx-line1">
-              <span class="tx-main">${esc(main)}</span>
-              ${secondary ? `<span class="tx-dot">•</span><span class="tx-secondary">${esc(secondary)}</span>` : ""}
-            </div>
-            ${note ? `<div class="tx-note">${esc(note)}</div>` : ""}
-          </div>
+    div.innerHTML = `
+      <div class="tx-left">
+        <!-- FIXED ICON WRAPPER -->
+        <div class="tx-icon-box">
+          ${iconHTML}
         </div>
 
-        <div class="tx-amt negative">
-          ${displayAmount}
+        <div class="tx-text">
+          <div class="tx-line1">
+            <span class="tx-main">${esc(main)}</span>
+            ${secondary ? `<span class="tx-dot">•</span><span class="tx-secondary">${esc(secondary)}</span>` : ""}
+          </div>
+
+          ${note ? `<div class="tx-note">${esc(note)}</div>` : ""}
         </div>
       </div>
+
+      <div class="tx-amt negative">${displayAmount}</div>
     `;
+
+    return div;
   }
 }
 
